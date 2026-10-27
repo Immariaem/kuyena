@@ -13,7 +13,7 @@ final class SecurePeriodStorage implements PeriodStorage {
   });
 
   // Keep the original key so existing records remain accessible. The JSON
-  // document itself contains its version (now 2).
+  // document itself contains its version.
   static const key = 'kuyena.period_starts.v1';
   final FlutterSecureStorage storage;
 

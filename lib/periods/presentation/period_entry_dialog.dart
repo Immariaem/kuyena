@@ -15,7 +15,11 @@ class PeriodEntryDialog extends StatefulWidget {
 
   final CalendarDate today;
   final Period? initial;
-  final Future<List<Period>> Function(CalendarDate start, CalendarDate? end)
+  final Future<List<Period>> Function(
+    CalendarDate start,
+    CalendarDate? end,
+    bool isOngoing,
+  )
   onSave;
 
   @override
@@ -25,6 +29,7 @@ class PeriodEntryDialog extends StatefulWidget {
 class _PeriodEntryDialogState extends State<PeriodEntryDialog> {
   late CalendarDate _start;
   CalendarDate? _end;
+  bool _isOngoing = false;
   bool _saving = false;
   String? _error;
 
@@ -33,6 +38,7 @@ class _PeriodEntryDialogState extends State<PeriodEntryDialog> {
     super.initState();
     _start = widget.initial?.start ?? widget.today;
     _end = widget.initial?.end;
+    _isOngoing = widget.initial?.isOngoing ?? false;
   }
 
   Future<void> _pickDate({required bool isEnd}) async {
@@ -59,6 +65,7 @@ class _PeriodEntryDialogState extends State<PeriodEntryDialog> {
       final date = CalendarDate.fromDateTime(picked);
       if (isEnd) {
         _end = date;
+        _isOngoing = false;
       } else {
         _start = date;
       }
@@ -73,7 +80,7 @@ class _PeriodEntryDialogState extends State<PeriodEntryDialog> {
       _error = null;
     });
     try {
-      final periods = await widget.onSave(_start, _end);
+      final periods = await widget.onSave(_start, _end, _isOngoing);
       if (mounted) Navigator.of(context).pop(periods);
     } on PeriodRuleException catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -118,6 +125,20 @@ class _PeriodEntryDialogState extends State<PeriodEntryDialog> {
                 label: Text(_start.display),
               ),
               const SizedBox(height: 20),
+              SwitchListTile.adaptive(
+                key: const ValueKey('period-ongoing-switch'),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Periode läuft noch'),
+                value: _isOngoing,
+                onChanged: _saving
+                    ? null
+                    : (value) => setState(() {
+                        _isOngoing = value;
+                        if (value) _end = null;
+                        _error = null;
+                      }),
+              ),
+              const SizedBox(height: 8),
               const Text(
                 'Ende (optional)',
                 style: TextStyle(fontWeight: FontWeight.bold),
@@ -146,8 +167,9 @@ class _PeriodEntryDialogState extends State<PeriodEntryDialog> {
                 ),
               const SizedBox(height: 8),
               const Text(
-                'Wenn du das Ende noch nicht weißt, lass es offen. '
-                'Du kannst es später ergänzen.',
+                'Aktuell noch Blutung? Aktiviere „Periode läuft noch“. '
+                'Ist das Ende nur unbekannt, lass das Enddatum offen. '
+                'Ein Enddatum beendet die Markierung.',
               ),
               if (_error != null) ...[
                 const SizedBox(height: 16),

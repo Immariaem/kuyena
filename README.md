@@ -2,12 +2,14 @@
 
 Lokales Zyklustagebuch mit Flutter und Dart für Android, iPhone und Browser.
 Der erste Funktionsumfang dokumentiert Perioden mit Beginn und optionalem Ende. Symptome,
-Vorhersagen, Empfehlungen und Export sind noch nicht implementiert.
+Empfehlungen und Export sind noch nicht implementiert. Der nächste Periodenbeginn wird näherungsweise aus persönlichen Startabständen geschätzt.
 
 ## Aktueller Ablauf
 
 - Beginn und optionales Ende erfassen, Verlauf anzeigen, Angaben korrigieren.
 - Ein Ende später ergänzen oder wieder als unbekannt angeben.
+- „Periode läuft noch“ ausdrücklich markieren und mit einem Enddatum beenden.
+- Auf Home Tage seit Beginn bzw. den dokumentierten Periodentag im Kreis anzeigen.
 - Einzelne oder alle Einträge nach Bestätigung löschen.
 - Einträge beim erneuten Öffnen aus dem lokalen Speicher laden.
 - Keine Konten, keine Synchronisation und kein Backend für Gesundheitsdaten.
@@ -17,6 +19,17 @@ die Eingabemaske. Beginn wählen, bei Bedarf „Ende (optional)“ auswählen un
 „Speichern“ drücken. Bestehende Einträge lassen sich über „Korrigieren“
 bearbeiten. Ein leeres Ende bedeutet unbekannt. Angegebene Enddaten müssen
 zwischen Beginn und heute liegen. Abbrechen speichert keine Änderungen.
+
+Nach Rückkehr zu Home wird der Kreis aktualisiert: Beginn zählt als Tag 1.
+Ein unbekanntes Ende wird nicht automatisch als laufende Periode interpretiert.
+Die ausdrückliche Markierung „Periode läuft noch“ macht den Bogen rot,
+sonst ist er hellrosa. Er baut sich von oben im Uhrzeigersinn auf.
+Das Datumsrad zeigt den Wert für den ausgewählten Tag, „Heute“ führt zurück.
+Mit mindestens drei Periodenbeginnen zeigt der Kreis außerhalb einer
+bestätigten Periode den ungefähren Countdown aus dem Median der letzten
+bis zu sechs Startabstände. Antippen erklärt die Rechnung. Zu wenige
+Angaben ergeben keine erfundene Standardlänge; ein vergangener geschätzter
+Termin wird als solcher angezeigt.
 
 ## Entwicklung
 
@@ -69,13 +82,17 @@ Für eine größere Symptomdatenbank ist die Speicherung neu zu bewerten.
 
 Bereits gespeicherte Periodenbeginne aus Dokumentversion 1 werden mit
 unverändertem Datum und unbekanntem Ende gelesen. Beim nächsten bestätigten
-Speichern werden sie zusammen mit den Änderungen in Version 2 übernommen.
+Speichern werden sie zusammen mit den Änderungen in Version 3 übernommen.
+Version-2-Perioden ohne Aktiv-Markierung bleiben ebenfalls lesbar;
+ihre unbekannten Enden bleiben unbekannt.
 Der bisherige Speicherschlüssel bleibt erhalten. Ein bloßes Öffnen schreibt
 die Daten nicht um; beschädigte oder unbekannte Formate werden gemeldet.
 
 ## Kursdokumentation
 
 [Periodenmodell, Erklärung und aktueller Speicherablauf](docs/periodenmodell.md)
+
+[Tageszähler im Kreis und Berechnung aus den gespeicherten Angaben](docs/periodentag.md)
 
 [Erster Meilenstein: Periodenbeginn (Stand 18.10.2026)](docs/periodenbeginn.md)
 

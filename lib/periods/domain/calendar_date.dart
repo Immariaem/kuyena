@@ -34,6 +34,18 @@ final class CalendarDate implements Comparable<CalendarDate> {
       '${value.month.toString().padLeft(2, '0')}.'
       '${value.year.toString().padLeft(4, '0')}';
 
+  /// Calendar-day distance, unaffected by 23/25-hour daylight-saving days.
+  int daysUntil(CalendarDate other) => DateTime.utc(
+    other.value.year,
+    other.value.month,
+    other.value.day,
+  ).difference(DateTime.utc(value.year, value.month, value.day)).inDays;
+
+  CalendarDate addDays(int days) {
+    final date = DateTime.utc(value.year, value.month, value.day + days);
+    return CalendarDate(date.year, date.month, date.day);
+  }
+
   @override
   int compareTo(CalendarDate other) => iso.compareTo(other.iso);
 

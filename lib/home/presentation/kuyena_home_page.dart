@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -7,12 +8,15 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../periods/application/period_diary.dart';
 import '../../periods/domain/calendar_date.dart';
+import '../../periods/domain/period.dart';
+import '../../periods/domain/period_day_overview.dart';
 import '../../periods/presentation/period_home_page.dart';
 import 'home_design.dart';
 import 'curved_date_slider.dart';
 import 'home_desktop_layout.dart';
+import 'period_status_ring.dart';
 
-/// Home is a design preview. Sample predictions never enter the diary.
+/// The ring uses saved observations; the other cards remain design examples.
 class KuyenaHomePage extends StatefulWidget {
   const KuyenaHomePage({super.key, required this.diary});
 
@@ -22,26 +26,206 @@ class KuyenaHomePage extends StatefulWidget {
   State<KuyenaHomePage> createState() => _KuyenaHomePageState();
 }
 
-class _KuyenaHomePageState extends State<KuyenaHomePage> {
+class _KuyenaHomePageState extends State<KuyenaHomePage>
+    with WidgetsBindingObserver {
   late CalendarDate _selectedDate;
+  late CalendarDate _today;
+  List<Period> _periods = const [];
+  bool _loadingPeriods = true;
+  bool _periodLoadFailed = false;
+  int _loadRequest = 0;
+  Timer? _dayChangeTimer;
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = widget.diary.today;
+    _today = widget.diary.today;
+    _selectedDate = _today;
+    WidgetsBinding.instance.addObserver(this);
+    _loadPeriods();
+    _scheduleDayChange();
   }
 
-  void _selectToday() => setState(() => _selectedDate = widget.diary.today);
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _dayChangeTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant KuyenaHomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.diary != widget.diary) {
+      _refreshDay();
+      _loadPeriods();
+      _scheduleDayChange();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshDay();
+      _loadPeriods();
+      _scheduleDayChange();
+    }
+  }
+
+  void _refreshDay() {
+    final today = widget.diary.today;
+    setState(() {
+      if (_selectedDate == _today) _selectedDate = today;
+      _today = today;
+    });
+  }
+
+  void _scheduleDayChange() {
+    _dayChangeTimer?.cancel();
+    final now = widget.diary.clock();
+    final nextDay = now.isUtc
+        ? DateTime.utc(now.year, now.month, now.day + 1)
+        : DateTime(now.year, now.month, now.day + 1);
+    _dayChangeTimer = Timer(nextDay.difference(now), () {
+      if (!mounted) return;
+      _refreshDay();
+      _scheduleDayChange();
+    });
+  }
+
+  Future<void> _loadPeriods() async {
+    final request = ++_loadRequest;
+    setState(() {
+      _loadingPeriods = true;
+      _periodLoadFailed = false;
+    });
+    try {
+      final periods = await widget.diary.load();
+      if (mounted && request == _loadRequest) {
+        setState(() => _periods = periods);
+      }
+    } catch (_) {
+      if (mounted && request == _loadRequest) {
+        setState(() => _periodLoadFailed = true);
+      }
+    } finally {
+      if (mounted && request == _loadRequest) {
+        setState(() => _loadingPeriods = false);
+      }
+    }
+  }
+
+  void _selectToday() {
+    _refreshDay();
+    setState(() => _selectedDate = _today);
+    _loadPeriods();
+  }
 
   void _selectDate(CalendarDate date) => setState(() => _selectedDate = date);
 
-  void _openDiary({bool log = false}) {
-    Navigator.of(context).push(
+  Future<void> _openDiary({bool log = false}) async {
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) =>
             PeriodHomePage(diary: widget.diary, openEntryOnLoad: log),
       ),
     );
+    if (!mounted) return;
+    _refreshDay();
+    await _loadPeriods();
+  }
+
+  PeriodDayOverview get _overview =>
+      PeriodDayOverview.fromPeriods(_periods, _selectedDate, asOf: _today);
+
+  Widget _periodRing(double scale) => PeriodStatusRing(
+    scale: scale,
+    overview: _overview,
+    isToday: _selectedDate == _today,
+    loading: _loadingPeriods,
+    loadFailed: _periodLoadFailed,
+    onTap: () {
+      if (_periodLoadFailed) {
+        _loadPeriods();
+      } else if (_overview.kind == PeriodDayKind.noEntry) {
+        _openDiary(log: true);
+      } else {
+        _showPeriodDetails();
+      }
+    },
+  );
+
+  Future<void> _showPeriodDetails() async {
+    final overview = _overview;
+    final period = overview.period!;
+    final edit = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      builder: (context) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(26, 8, 26, 30),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Deine dokumentierten Angaben', style: HomeDesign.text(24)),
+            const SizedBox(height: 12),
+            Text(
+              'Ausgewählter Tag: ${overview.date.display}\n'
+              'Beginn: ${period.start.display}\n'
+              'Ende: ${period.isOngoing ? 'läuft noch' : period.end?.display ?? 'unbekannt'}',
+              style: HomeDesign.text(16, weight: FontWeight.w600, height: 1.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              overview.kind == PeriodDayKind.overlapping
+                  ? 'Mehrere dokumentierte Zeiträume überschneiden sich an diesem Tag. '
+                        'Bitte prüfe deine Einträge; der Kreis legt dafür keinen Periodentag fest.'
+                  : 'Der Beginn zählt als Tag 1. Am ausgewählten Tag ist deshalb Tag ${overview.dayNumber} seit Beginn. '
+                        '${period.isOngoing
+                            ? 'Du hast diese Periode ausdrücklich als noch laufend markiert; der Bogen ist deshalb rot.'
+                            : period.end == null
+                            ? 'Ein unbekanntes Ende bestätigt nicht, dass die Blutung noch läuft. Du kannst „Periode läuft noch“ beim Bearbeiten aktivieren.'
+                            : 'Innerhalb des dokumentierten Periodenzeitraums ist der Bogen rot, danach hellrosa.'}',
+              style: HomeDesign.text(
+                16,
+                color: HomeDesign.ink,
+                weight: FontWeight.w600,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              overview.estimate == null
+                  ? 'Für den Countdown brauchen wir mindestens drei Periodenbeginne, also zwei Abstände. '
+                        'Bei widersprüchlichen Zeiträumen wird ebenfalls keine Schätzung angezeigt. '
+                        'Es wird keine feste Zykluslänge unterstellt.'
+                  : 'Geschätzte Zykluslänge: ${overview.estimate!.lengthInDays} Tage. '
+                        'Das ist der Median aus den letzten ${overview.estimate!.cycleCount} Start-zu-Start-Abständen. '
+                        'Diese lagen zwischen ${overview.estimate!.shortestInterval} und ${overview.estimate!.longestInterval} Tagen.\n\n'
+                        'Geschätzter nächster Beginn: ${overview.estimate!.expectedStart.display}. '
+                        'Letzter Beginn + geschätzte Zykluslänge − ausgewählter Tag ergibt den Countdown. '
+                        'Der Bogen wächst im geschätzten Zyklus von 0 bis 100 Prozent. '
+                        'Der tatsächliche Beginn kann abweichen; ein überschrittener Termin wird nicht automatisch in den nächsten Zyklus verschoben.',
+              style: HomeDesign.text(
+                14,
+                color: HomeDesign.muted,
+                weight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: HomeDesign.red),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Einträge ansehen'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (edit == true && mounted) await _openDiary();
   }
 
   void _showPreview({bool recommendations = false}) {
@@ -65,9 +249,9 @@ class _KuyenaHomePageState extends State<KuyenaHomePage> {
               recommendations
                   ? 'Für dich liegen noch keine persönlichen Empfehlungen vor. '
                         'Die Bewegungsideen auf der Startseite sind Beispiele.'
-                  : '„3 Days“, Zyklusphase und Beschwerden auf dieser '
-                        'Startseite sind Beispieldaten. Sie sind keine '
-                        'Auswertung deiner gespeicherten Einträge.',
+                  : 'Zyklusphase, Beschwerden und Bewegungsideen auf dieser '
+                        'Startseite sind Beispieldaten, keine Auswertung deiner gespeicherten Einträge. '
+                        'Der Kreis verwendet dagegen deinen dokumentierten Beginn und das optionale Ende.',
               style: HomeDesign.text(
                 16,
                 color: HomeDesign.ink,
@@ -123,7 +307,7 @@ class _KuyenaHomePageState extends State<KuyenaHomePage> {
                 ),
               ),
               SizedBox(height: 12 * scale),
-              _CycleRing(scale: scale, onTap: _showPreview),
+              _periodRing(scale),
               SizedBox(height: 24 * scale),
             ],
           ),
@@ -177,7 +361,7 @@ class _KuyenaHomePageState extends State<KuyenaHomePage> {
                     color: Colors.white,
                     child: Semantics(
                       label:
-                          'Kuyena Startseite. Designvorschau mit Beispieldaten.',
+                          'Kuyena Startseite. Der Kreis nutzt deine Einträge. Weitere Karten sind Designbeispiele.',
                       container: true,
                       child: Column(
                         children: [
@@ -279,10 +463,7 @@ class _KuyenaHomePageState extends State<KuyenaHomePage> {
                                         ),
                                       ),
                                       SizedBox(height: 12 * scale),
-                                      _CycleRing(
-                                        scale: scale,
-                                        onTap: _showPreview,
-                                      ),
+                                      _periodRing(scale),
                                       SizedBox(height: 27 * scale),
                                       Padding(
                                         padding: EdgeInsets.symmetric(
@@ -444,65 +625,6 @@ class _DateToolbar extends StatelessWidget {
             ),
           ),
       ],
-    ),
-  );
-}
-
-class _CycleRing extends StatelessWidget {
-  const _CycleRing({required this.scale, required this.onTap});
-  final double scale;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    label: 'Designbeispiel: nächste Periode in drei Tagen. Details anzeigen.',
-    excludeSemantics: true,
-    child: InkWell(
-      borderRadius: BorderRadius.circular(200),
-      onTap: onTap,
-      child: SizedBox(
-        width: 339 * scale,
-        height: 339 * scale,
-        child: Stack(
-          children: [
-            _HomeAsset(
-              'cycle-background',
-              width: 339 * scale,
-              height: 339 * scale,
-            ),
-            Positioned(
-              left: 27.05 * scale,
-              top: 29 * scale,
-              child: _HomeAsset(
-                'cycle-arc',
-                width: 287.342 * scale,
-                height: 257.004 * scale,
-              ),
-            ),
-            Positioned(
-              top: 138 * scale,
-              left: 0,
-              right: 0,
-              child: Text(
-                'Next period in',
-                textAlign: TextAlign.center,
-                style: HomeDesign.text(15 * scale),
-              ),
-            ),
-            Positioned(
-              top: 155 * scale,
-              left: 0,
-              right: 0,
-              child: Text(
-                '3 Days',
-                textAlign: TextAlign.center,
-                style: HomeDesign.text(40 * scale, height: 1.375),
-              ),
-            ),
-          ],
-        ),
-      ),
     ),
   );
 }

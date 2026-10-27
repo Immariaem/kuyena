@@ -35,35 +35,38 @@ void main() {
     },
   );
 
-  test('Alte Beginne werden ohne Schreibzugriff geladen und beim Bearbeiten übernommen', () async {
-    const legacy = '{"version":1,"starts":["2026-10-03","2026-09-03"]}';
-    final storage = MemoryPeriodStorage(legacy)..failWrite = true;
-    final repository = LocalPeriodRepository(storage);
-    final periods = await repository.load();
-    expect(storage.value, legacy);
-    expect(periods.map((p) => p.start.iso), ['2026-10-03', '2026-09-03']);
-    expect(periods.every((p) => p.end == null), isTrue);
-    expect(
-      (await repository.load()).map((p) => p.id),
-      periods.map((p) => p.id),
-    );
+  test(
+    'Alte Beginne werden ohne Schreibzugriff geladen und beim Bearbeiten übernommen',
+    () async {
+      const legacy = '{"version":1,"starts":["2026-10-03","2026-09-03"]}';
+      final storage = MemoryPeriodStorage(legacy)..failWrite = true;
+      final repository = LocalPeriodRepository(storage);
+      final periods = await repository.load();
+      expect(storage.value, legacy);
+      expect(periods.map((p) => p.start.iso), ['2026-10-03', '2026-09-03']);
+      expect(periods.every((p) => p.end == null), isTrue);
+      expect(
+        (await repository.load()).map((p) => p.id),
+        periods.map((p) => p.id),
+      );
 
-    storage.failWrite = false;
-    await repository.save([
-      periods.first.correctDates(start: CalendarDate(2026, 10, 2), end: end),
-      periods.last,
-    ]);
-    expect((jsonDecode(storage.value!) as Map)['version'], 2);
-    final reloaded = await LocalPeriodRepository(storage).load();
-    expect(
-      (reloaded.first.id, reloaded.first.start.iso, reloaded.first.end),
-      (periods.first.id, '2026-10-02', end),
-    );
-    expect(
-      (reloaded.last.id, reloaded.last.start.iso, reloaded.last.end),
-      (periods.last.id, '2026-09-03', null),
-    );
-  });
+      storage.failWrite = false;
+      await repository.save([
+        periods.first.correctDates(start: CalendarDate(2026, 10, 2), end: end),
+        periods.last,
+      ]);
+      expect((jsonDecode(storage.value!) as Map)['version'], 3);
+      final reloaded = await LocalPeriodRepository(storage).load();
+      expect(
+        (reloaded.first.id, reloaded.first.start.iso, reloaded.first.end),
+        (periods.first.id, '2026-10-02', end),
+      );
+      expect(
+        (reloaded.last.id, reloaded.last.start.iso, reloaded.last.end),
+        (periods.last.id, '2026-09-03', null),
+      );
+    },
+  );
 
   test(
     'Beschädigte und unbekannte Formate bleiben bei einem Lesefehler erhalten',
@@ -73,7 +76,7 @@ void main() {
         '',
         'null',
         '[]',
-        '{"version":3,"periods":[]}',
+        '{"version":4,"periods":[]}',
         '{"version":2,"starts":[]}',
         '{"version":1,"starts":["2026-02-31"]}',
         '{"version":1,"starts":[17]}',
@@ -124,6 +127,49 @@ void main() {
         repository.save([Period(id: 'a', start: start)]),
         throwsStateError,
       );
+    },
+  );
+
+  test(
+    'Version 2 bleibt unbekannt statt automatisch laufend; Version 3 bewahrt die Bestätigung',
+    () async {
+      const old =
+          '{"version":2,"periods":[{"id":"a","start":"2026-10-03","end":null}]}';
+      final storage = MemoryPeriodStorage(old);
+      final repository = LocalPeriodRepository(storage);
+      final original = (await repository.load()).single;
+      expect(original.isOngoing, isFalse);
+      expect(storage.value, old);
+      await repository.save([
+        original.correctDates(
+          start: original.start,
+          end: null,
+          isOngoing: true,
+        ),
+      ]);
+      expect(
+        (await LocalPeriodRepository(storage).load()).single.isOngoing,
+        isTrue,
+      );
+      expect((jsonDecode(storage.value!) as Map)['version'], 3);
+    },
+  );
+
+  test(
+    'Ungültige laufende Bestätigung in Version 3 bleibt unverändert erhalten',
+    () async {
+      for (final raw in [
+        '{"version":3,"periods":[{"id":"a","start":"2026-10-03","end":null}]}',
+        '{"version":3,"periods":[{"id":"a","start":"2026-10-03","end":null,"ongoing":"yes"}]}',
+        '{"version":3,"periods":[{"id":"a","start":"2026-10-03","end":"2026-10-05","ongoing":true}]}',
+      ]) {
+        final storage = MemoryPeriodStorage(raw);
+        await expectLater(
+          LocalPeriodRepository(storage).load(),
+          throwsA(isA<PeriodDataException>()),
+        );
+        expect(storage.value, raw);
+      }
     },
   );
 }

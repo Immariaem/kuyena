@@ -33,19 +33,21 @@ final class LocalPeriodRepository implements PeriodRepository {
       final periods = <Period>[];
       if (document['version'] == 1 && document['starts'] is List) {
         // Reading old records does not write or delete anything. Their IDs
-        // remain stable until the next explicit save writes version 2.
+        // remain stable until the next explicit save writes the current version.
         for (final value in document['starts'] as List) {
           if (value is! String) throw const PeriodDataException();
           final start = CalendarDate.parse(value);
           periods.add(Period(id: 'legacy-${start.iso}', start: start));
         }
-      } else if (document['version'] == 2 && document['periods'] is List) {
+      } else if ((document['version'] == 2 || document['version'] == 3) &&
+          document['periods'] is List) {
         for (final value in document['periods'] as List) {
           if (value is! Map<String, dynamic> ||
               value['id'] is! String ||
               value['start'] is! String ||
               !value.containsKey('end') ||
-              (value['end'] != null && value['end'] is! String)) {
+              (value['end'] != null && value['end'] is! String) ||
+              (document['version'] == 3 && value['ongoing'] is! bool)) {
             throw const PeriodDataException();
           }
           periods.add(
@@ -55,6 +57,9 @@ final class LocalPeriodRepository implements PeriodRepository {
               end: value['end'] == null
                   ? null
                   : CalendarDate.parse(value['end'] as String),
+              isOngoing: document['version'] == 3
+                  ? value['ongoing'] as bool
+                  : false,
             ),
           );
         }
@@ -82,13 +87,14 @@ final class LocalPeriodRepository implements PeriodRepository {
   Future<void> save(List<Period> periods) async {
     _validateUnique(periods);
     final encoded = jsonEncode({
-      'version': 2,
+      'version': 3,
       'periods': periods
           .map(
             (period) => {
               'id': period.id,
               'start': period.start.iso,
               'end': period.end?.iso,
+              'ongoing': period.isOngoing,
             },
           )
           .toList(),

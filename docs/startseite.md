@@ -16,11 +16,12 @@ Datumsrad/Zyklusring und Informationen. Eine schmale Browseransicht verwendet
 weiter das mobile Layout.
 
 Die Datumsleiste verwendet echte Kalendertage. Die kleine Kennzeichnung
-„Demo“ erklärt, dass „3 Days“, Zyklusphase und Beschwerden Beispieldaten
-sind. Diese Werte werden weder
-aus gespeicherten Gesundheitsdaten berechnet noch als Einträge gespeichert.
-Eine echte Vorhersage oder individuelle Bewegungsempfehlung setzt weitere
-fachliche Entscheidungen voraus.
+„Demo“ erklärt, dass Zyklusphase, Beschwerden und Bewegungsideen Beispieldaten
+sind. Der Kreis verwendet jetzt die tatsächlich gespeicherten Perioden und
+zeigt den Tageswert für das ausgewählte Datum. Die übrigen Beispielwerte
+werden weder aus Gesundheitsdaten berechnet noch als Einträge gespeichert.
+Der Countdown ist jetzt eine persönliche Median-Schätzung aus mindestens
+drei Periodenbeginnen. Individuelle Bewegungsempfehlungen sind weiterhin offen.
 
 ## Bedienung
 
@@ -34,16 +35,18 @@ fachliche Entscheidungen voraus.
   auf den aktuellen Kalendertag zurück. Home hat dieselbe Rücksetzfunktion.
 - Die Webansicht bietet zusätzlich Pfeile für vorherigen/nächsten Tag.
   Ein fokussiertes Datumsrad ist auch über linke/rechte Pfeiltaste bedienbar.
-- Eine geänderte Tagesauswahl verändert keine gespeicherten Einträge und
-  erzeugt keine neue Vorhersage.
+- Eine geänderte Tagesauswahl berechnet den Tageswert im Kreis neu. Sie
+  verändert keine gespeicherten Einträge. Ein vorhandener Countdown wird
+  für den ausgewählten Tag neu berechnet.
 - Calendar und Cycle öffnen vorerst den vorhandenen Periodenverlauf.
 - Der zentrale Plusknopf öffnet nach erfolgreichem Laden des Verlaufs die
   Eingabemaske für Beginn und optionales Ende. Abbrechen speichert nichts. Bei einem
   Ladefehler beginnt keine neue Erfassung.
 - For you und die Bewegungskarte zeigen den Hinweis, dass noch keine
   persönlichen Empfehlungen vorliegen.
-- Demo, Zyklusring und die beiden kleinen Infokarten erklären die
-  Beispieldaten.
+- Demo und die beiden kleinen Infokarten erklären die Beispieldaten.
+- Der Kreis erklärt beim Antippen die dokumentierten Angaben und deren
+  Berechnung. Ohne Eintrag öffnet er die Erfassung; bei Lesefehler lädt er neu.
 
 Die originale iOS-Statusleiste und der Homeindikator dienen im Browser als
 Darstellungsrahmen. Auf einem echten Handy liefert das Betriebssystem
@@ -60,6 +63,8 @@ seine Statusanzeige und Navigation.
   bestimmt, wie tief das jeweilige Feld auf dem Bogen liegt.
 - `lib/home/presentation/home_desktop_layout.dart` ordnet dieselben
   Funktionen für breite Browserfenster an.
+- `lib/home/presentation/period_status_ring.dart` zeigt Tagesnummer,
+  dokumentiertes Ende und einen daraus berechneten Ringanteil.
 - `lib/main.dart` öffnet die neue Startseite beim App-Start.
 - `assets/home/` enthält die Originalgrafiken aus Figma.
 - `assets/fonts/` enthält die Schrift und ihre Lizenz.
@@ -67,9 +72,11 @@ seine Statusanzeige und Navigation.
   Öffnen direkt die Periodenerfassung zu starten. Seine Speicher- und
   Fachlogik bleibt an den bisherigen Stellen.
 
-Die Startseitengestaltung führt keine neue Zyklus- oder Vorhersagelogik ein.
+Ein ungefährer nächster Beginn wird aus persönlichen Startabständen
+berechnet und als Schätzung gekennzeichnet.
 Die am 26.10.2026 angeschlossene Enddatum-Eingabe ist im
-[Periodenmodell](periodenmodell.md) erklärt.
+[Periodenmodell](periodenmodell.md) erklärt; die Verwendung im Kreis unter
+[Periodentag](periodentag.md).
 
 Die Datumsrechnung verwendet Jahr, Monat und Tag. Für die Reihenfolge der
 Tagesfelder werden diese Werte intern auf UTC-Kalendertage abgebildet, damit
@@ -103,3 +110,15 @@ Mausrad, Tastatur, Datumssprünge und bestehende Speicherung werden geprüft.
 Ergänzung am 26.10.2026: Der Plusknopf öffnet jetzt die Eingabemaske für
 vollständige Perioden mit optionalem Ende. Die aktuelle Prüfung umfasst
 57 Tests für Darstellung, Fachlogik und Speicherung.
+
+Weitere Ergänzung am 26.10.2026: Codex hat den Kreis an die gespeicherten
+Perioden angeschlossen. Tageswerte und dokumentierter Fortschritt ersetzen
+das feste Beispiel „3 Days“. Die übrigen Designkarten bleiben Beispiele.
+
+Weitere Anpassung: Der Bogen baut sich oben beginnend im Uhrzeigersinn auf.
+Er ist bei bestätigter Periode rot, sonst hellrosa. Außerhalb einer
+bestätigten Periode erscheint bei ausreichenden Einträgen „Noch ca. N Tage“
+bis zum geschätzten nächsten Beginn. Ohne genug Beginne gibt es keine
+erfundene Standardlänge. „Periode läuft noch“ kann ausdrücklich erfasst
+werden; alte unbekannte Enden bleiben unbekannt. Details stehen unter
+[Periodentag und Countdown](periodentag.md).

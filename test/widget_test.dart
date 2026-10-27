@@ -8,6 +8,7 @@ import 'package:kuyena_tracker/periods/presentation/period_entry_dialog.dart';
 import 'support/memory_period_storage.dart';
 
 Future<void> openDiary(WidgetTester tester, MemoryPeriodStorage storage) async {
+  addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
   await tester.pumpWidget(
     ZyklusApp(
       key: UniqueKey(),
@@ -261,4 +262,33 @@ void main() {
     expect(find.text('Periodenbeginn: 02.10.2026'), findsOneWidget);
     expect(find.text('Periodenende: 07.10.2026'), findsOneWidget);
   });
+
+  testWidgets(
+    'Laufende Periode wird ausdrücklich gespeichert und durch ein Ende beendet',
+    (tester) async {
+      final storage = MemoryPeriodStorage();
+      await openDiary(tester, storage);
+      await openEntry(tester);
+      final ongoing = find.byKey(const ValueKey('period-ongoing-switch'));
+      await tester.ensureVisible(ongoing);
+      await tester.tap(ongoing);
+      await tester.pumpAndSettle();
+      await saveEntry(tester);
+      expect(
+        (await LocalPeriodRepository(storage).load()).single.isOngoing,
+        isTrue,
+      );
+      await openDiary(tester, storage);
+      expect(find.text('Periode läuft noch'), findsOneWidget);
+      await tester.ensureVisible(find.text('Korrigieren'));
+      await tester.tap(find.text('Korrigieren'));
+      await tester.pumpAndSettle();
+      await pickDate(tester, 'period-end-field');
+      await saveEntry(tester);
+      final period = (await LocalPeriodRepository(storage).load()).single;
+      expect(period.isOngoing, isFalse);
+      expect(period.end, isNotNull);
+      expect(find.text('Periodenende: 18.10.2026'), findsOneWidget);
+    },
+  );
 }

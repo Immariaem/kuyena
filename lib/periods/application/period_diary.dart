@@ -66,33 +66,42 @@ final class PeriodDiary {
   Future<List<Period>> load() =>
       _run(() async => _sorted(await repository.load()));
 
-  Future<List<Period>> add(CalendarDate start, {CalendarDate? end}) =>
-      _run(() async {
-        _validate(start, end);
-        final periods = await repository.load();
-        if (periods.any((period) => period.start == start)) {
-          throw const PeriodRuleException(
-            'Für diesen Tag besteht bereits ein Eintrag.',
-          );
-        }
-        final Period period;
-        try {
-          period = Period(id: _idGenerator(), start: start, end: end);
-        } on ArgumentError catch (error) {
-          throw PeriodRuleException(error.message.toString());
-        }
-        if (periods.any((existing) => existing.id == period.id)) {
-          throw StateError('Es konnte keine neue Kennung vergeben werden.');
-        }
-        final updated = _sorted([...periods, period]);
-        await repository.save(updated);
-        return updated;
-      });
+  Future<List<Period>> add(
+    CalendarDate start, {
+    CalendarDate? end,
+    bool isOngoing = false,
+  }) => _run(() async {
+    _validate(start, end);
+    final periods = await repository.load();
+    if (periods.any((period) => period.start == start)) {
+      throw const PeriodRuleException(
+        'Für diesen Tag besteht bereits ein Eintrag.',
+      );
+    }
+    final Period period;
+    try {
+      period = Period(
+        id: _idGenerator(),
+        start: start,
+        end: end,
+        isOngoing: isOngoing,
+      );
+    } on ArgumentError catch (error) {
+      throw PeriodRuleException(error.message.toString());
+    }
+    if (periods.any((existing) => existing.id == period.id)) {
+      throw StateError('Es konnte keine neue Kennung vergeben werden.');
+    }
+    final updated = _sorted([...periods, period]);
+    await repository.save(updated);
+    return updated;
+  });
 
   Future<List<Period>> correct(
     String id,
     CalendarDate start, {
     required CalendarDate? end,
+    bool? isOngoing,
   }) => _run(() async {
     _validate(start, end);
     final periods = await repository.load();
@@ -109,7 +118,11 @@ final class PeriodDiary {
     }
     final Period corrected;
     try {
-      corrected = periods[index].correctDates(start: start, end: end);
+      corrected = periods[index].correctDates(
+        start: start,
+        end: end,
+        isOngoing: isOngoing,
+      );
     } on ArgumentError catch (error) {
       throw PeriodRuleException(error.message.toString());
     }

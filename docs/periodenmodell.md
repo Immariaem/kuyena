@@ -15,6 +15,7 @@ Die neue Klasse liegt in `lib/periods/domain/period.dart`. Im Code heißt sie
 | Kennung | `String id` | Text, an dem derselbe Eintrag wiedererkannt wird. |
 | Beginn | `CalendarDate start` | Erster dokumentierter Tag. |
 | Ende | `CalendarDate? end` | Letzter dokumentierter Tag, falls bekannt. |
+| Läuft noch | `bool isOngoing` | Ausdrücklich bestätigte laufende Periode; ein unbekanntes Ende allein genügt nicht. |
 
 Eine Kennung darf nicht leer sein. Der Anwendungsservice vergibt für neue
 Einträge zufällige Kennungen und verhindert, dass eine bereits vorhandene
@@ -90,6 +91,18 @@ So lässt sich ein Ende jetzt angeben:
 3. Unter „Ende (optional)“ den letzten Periodentag auswählen oder das Feld
    offenlassen. Das Ende kann zwischen Beginn und heute liegen.
 4. Mit „Speichern“ bestätigen. Erst dann wird der Entwurf übernommen.
+
+Zusätzlich kann „Periode läuft noch“ aktiviert werden. Diese Markierung
+setzt das Ende im Entwurf auf unbekannt. Die Wahl eines Enddatums beendet
+die Markierung. Beides gleichzeitig lehnt auch die Fachklasse ab.
+Bestehende Einträge bekommen die Markierung nicht automatisch.
+
+Das aktuelle Speicherformat Version 3 ergänzt dafür `ongoing` als booleschen
+Wert. Version 1 und 2 bleiben ohne Schreibzugriff lesbar und erhalten
+zunächst `false`. Erst bestätigtes Speichern übernimmt in Version 3.
+Die folgenden Erläuterungen zu Version 2 beschreiben den vorherigen
+Meilenstein. Die aktuelle [Animation und Schätzung](periodentag.md)
+verwenden diese Angaben.
 
 Bei bestehenden Perioden öffnet „Korrigieren“ dieselbe Maske mit den
 gespeicherten Angaben. Ein Ende kann später ergänzt, geändert oder über

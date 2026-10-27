@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kuyena_tracker/main.dart';
@@ -7,14 +9,32 @@ import 'package:kuyena_tracker/periods/presentation/period_entry_dialog.dart';
 
 import '../support/memory_period_storage.dart';
 
-Future<MemoryPeriodStorage> openHome(WidgetTester tester) async {
-  final storage = MemoryPeriodStorage();
+MemoryPeriodStorage savedPeriod({
+  String start = '2026-10-20',
+  String? end,
+  bool ongoing = false,
+}) => MemoryPeriodStorage(
+  jsonEncode({
+    'version': 3,
+    'periods': [
+      {'id': 'test', 'start': start, 'end': end, 'ongoing': ongoing},
+    ],
+  }),
+);
+
+Future<MemoryPeriodStorage> openHome(
+  WidgetTester tester, {
+  MemoryPeriodStorage? storage,
+  DateTime Function()? clock,
+}) async {
+  storage ??= MemoryPeriodStorage();
+  addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
   await tester.pumpWidget(
     ZyklusApp(
       key: UniqueKey(),
       diary: PeriodDiary(
         repository: LocalPeriodRepository(storage),
-        clock: () => DateTime(2026, 10, 22),
+        clock: clock ?? () => DateTime(2026, 10, 22),
       ),
     ),
   );
@@ -28,7 +48,8 @@ void main() {
   ) async {
     final storage = await openHome(tester);
     expect(find.text('Hey, girl!'), findsOneWidget);
-    expect(find.text('3 Days'), findsOneWidget);
+    expect(find.text('3 Days'), findsNothing);
+    expect(find.text('Kein Eintrag'), findsOneWidget);
     expect(find.text('Demo'), findsOneWidget);
     expect(storage.value, isNull);
     await tester.tap(find.text('Demo'));
@@ -172,6 +193,202 @@ void main() {
       );
       expect(storage.value, isNull);
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Unbekanntes Ende gilt nicht als aktive Periode und erfindet keinen Countdown',
+    (tester) async {
+      final storage = savedPeriod();
+      final before = storage.value;
+      await openHome(tester, storage: storage);
+      expect(find.text('Noch offen'), findsOneWidget);
+      expect(find.text('Bis zur nächsten Periode'), findsOneWidget);
+      expect(find.textContaining('Ende unbekannt'), findsOneWidget);
+      expect(find.text('3 Days'), findsNothing);
+      expect(storage.value, before);
+      await tester.tap(find.byKey(const ValueKey('period-status-ring')));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('Ein unbekanntes Ende bestätigt nicht'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'Datumsrad berechnet den dokumentierten Periodentag neu und beachtet das Ende',
+    (tester) async {
+      final storage = savedPeriod(end: '2026-10-22');
+      final before = storage.value;
+      await openHome(tester, storage: storage);
+      expect(find.text('Deine Periode'), findsOneWidget);
+      expect(find.text('Tag 3'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('date-2026-10-21')));
+      await tester.pumpAndSettle();
+      expect(find.text('Tag 2'), findsOneWidget);
+      expect(find.text('Am 21.10.2026'), findsOneWidget);
+      await tester.tap(find.text('Heute'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('date-2026-10-23')));
+      await tester.pumpAndSettle();
+      expect(find.text('Bis zur nächsten Periode'), findsOneWidget);
+      expect(find.text('Noch offen'), findsOneWidget);
+      expect(storage.value, before);
+    },
+  );
+
+  testWidgets(
+    'Speichern und Rückkehr zu Home aktualisieren den Tageszähler sofort',
+    (tester) async {
+      await openHome(tester);
+      await tester.tap(find.byKey(const ValueKey('home-log-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('period-start-field')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('20').last);
+      final dialog = find.byType(DatePickerDialog);
+      await tester.tap(
+        find.text(
+          MaterialLocalizations.of(tester.element(dialog)).okButtonLabel,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final ongoing = find.byKey(const ValueKey('period-ongoing-switch'));
+      await tester.ensureVisible(ongoing);
+      await tester.tap(ongoing);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('period-save-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Zurück'));
+      await tester.pumpAndSettle();
+      expect(find.text('Tag 3'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Korrektur und Löschen werden nach Rückkehr auch im Kreis übernommen',
+    (tester) async {
+      final storage = savedPeriod(ongoing: true);
+      await openHome(tester, storage: storage);
+      await tester.tap(find.byKey(const ValueKey('home-nav-Calendar')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Korrigieren'));
+      await tester.tap(find.text('Korrigieren'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('period-start-field')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('21').last);
+      final dialog = find.byType(DatePickerDialog);
+      await tester.tap(
+        find.text(
+          MaterialLocalizations.of(tester.element(dialog)).okButtonLabel,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('period-save-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Zurück'));
+      await tester.pumpAndSettle();
+      expect(find.text('Tag 2'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('home-nav-Calendar')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Löschen'));
+      await tester.tap(find.text('Löschen'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('Löschen'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Zurück'));
+      await tester.pumpAndSettle();
+      expect(find.text('Kein Eintrag'), findsOneWidget);
+      expect(storage.value, isNull);
+    },
+  );
+
+  testWidgets(
+    'Lesefehler zeigt keine falsche Nullanzeige und lässt sich erneut laden',
+    (tester) async {
+      final storage = savedPeriod(ongoing: true)..failRead = true;
+      await openHome(tester, storage: storage);
+      expect(find.text('Nicht verfügbar'), findsOneWidget);
+      expect(find.text('Kein Eintrag'), findsNothing);
+      storage.failRead = false;
+      await tester.tap(find.byKey(const ValueKey('period-status-ring')));
+      await tester.pumpAndSettle();
+      expect(find.text('Tag 3'), findsOneWidget);
+    },
+  );
+
+  testWidgets('Heute und Tageszähler wechseln bei Mitternacht automatisch', (
+    tester,
+  ) async {
+    var now = DateTime(2026, 10, 22, 23, 59, 59);
+    await openHome(
+      tester,
+      storage: savedPeriod(ongoing: true),
+      clock: () => now,
+    );
+    expect(find.text('Tag 3'), findsOneWidget);
+    now = DateTime(2026, 10, 23);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(find.text('Tag 4'), findsOneWidget);
+    expect(find.text('Heute'), findsNWidgets(2));
+  });
+
+  testWidgets('Persönlicher Kreis passt auf Handy und breite Webansicht', (
+    tester,
+  ) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.devicePixelRatio = 1;
+    for (final size in [
+      const Size(320, 568),
+      const Size(900, 700),
+      const Size(1440, 1000),
+    ]) {
+      tester.view.physicalSize = size;
+      await openHome(
+        tester,
+        storage: savedPeriod(start: '2026-10-03', end: '2026-10-07'),
+      );
+      expect(find.text('Noch offen'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets(
+    'Countdown nutzt gespeicherte Beginne und erklärt seine persönliche Datenbasis',
+    (tester) async {
+      final storage = MemoryPeriodStorage(
+        jsonEncode({
+          'version': 2,
+          'periods': [
+            {'id': 'a', 'start': '2026-08-25', 'end': '2026-08-29'},
+            {'id': 'b', 'start': '2026-09-22', 'end': '2026-09-26'},
+            {'id': 'c', 'start': '2026-10-20', 'end': '2026-10-21'},
+          ],
+        }),
+      );
+      final before = storage.value;
+      await openHome(tester, storage: storage);
+      expect(find.text('Noch ca. 26 Tage'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('period-status-ring')));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining(
+          'Median aus den letzten 2 Start-zu-Start-Abständen',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('17.11.2026'), findsOneWidget);
+      expect(storage.value, before);
     },
   );
 }

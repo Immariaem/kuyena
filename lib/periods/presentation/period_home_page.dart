@@ -81,8 +81,9 @@ class _PeriodHomePageState extends State<PeriodHomePage> {
         _periods = periods;
         _loadFailed = false;
       });
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(success)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(success)));
     } on PeriodRuleException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } catch (_) {
@@ -106,9 +107,14 @@ class _PeriodHomePageState extends State<PeriodHomePage> {
       builder: (context) => PeriodEntryDialog(
         today: widget.diary.today,
         initial: previous,
-        onSave: (start, end) => previous == null
-            ? widget.diary.add(start, end: end)
-            : widget.diary.correct(previous.id, start, end: end),
+        onSave: (start, end, isOngoing) => previous == null
+            ? widget.diary.add(start, end: end, isOngoing: isOngoing)
+            : widget.diary.correct(
+                previous.id,
+                start,
+                end: end,
+                isOngoing: isOngoing,
+              ),
       ),
     );
     if (periods == null || !mounted) return;
@@ -184,8 +190,9 @@ class _PeriodHomePageState extends State<PeriodHomePage> {
                   Text(
                     'Dein Zyklus. Dein Überblick.',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   const Text(
@@ -276,7 +283,9 @@ class _PeriodHomePageState extends State<PeriodHomePage> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              period.end == null
+                              period.isOngoing
+                                  ? 'Periode läuft noch'
+                                  : period.end == null
                                   ? 'Periodenende: unbekannt'
                                   : 'Periodenende: ${period.end!.display}',
                             ),
