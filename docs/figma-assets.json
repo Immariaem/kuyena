@@ -1,0 +1,1038 @@
+{
+  "fileKey": "v4DO4nPi6aG16MkUwAcgoT",
+  "assets": [
+    {
+      "asset": "cb0fa.svg",
+      "bytes": 814,
+      "sha256": "466008a8c5a8f7a9409dd9347f9ec8a2e0ab0acf6c462a75e5b43d36914a1847",
+      "intrinsicSize": [
+        14.0,
+        14.0
+      ],
+      "designReferences": [
+        {
+          "node": "207:1758",
+          "variable": "imgCalendar"
+        },
+        {
+          "node": "24:3174",
+          "variable": "imgCalendar"
+        }
+      ],
+      "callSites": [
+        "lib/calendar/presentation/calendar_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "2564b.svg",
+      "bytes": 300,
+      "sha256": "d479ca54ef31c8ab0785a54a8b4f1f42af9eb74aad4e0be5f9b1c3a1c53e56fc",
+      "intrinsicSize": [
+        12.0,
+        12.0
+      ],
+      "designReferences": [
+        {
+          "node": "207:1758",
+          "variable": "imgChevronDown"
+        }
+      ],
+      "callSites": [
+        "lib/calendar/presentation/calendar_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "c9644.svg",
+      "bytes": 300,
+      "sha256": "d479ca54ef31c8ab0785a54a8b4f1f42af9eb74aad4e0be5f9b1c3a1c53e56fc",
+      "intrinsicSize": [
+        12.0,
+        12.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3174",
+          "variable": "imgChevronDown"
+        }
+      ],
+      "callSites": [
+        "lib/calendar/presentation/calendar_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "5130b.svg",
+      "bytes": 1183,
+      "sha256": "d5aadc7cf4c6032f3f9bdd1edb704fe353443a36f3acd266c383c5f48dff66e5",
+      "intrinsicSize": [
+        16.0,
+        16.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3174",
+          "variable": "imgIosSignal"
+        },
+        {
+          "node": "24:3486",
+          "variable": "imgIosSignal"
+        },
+        {
+          "node": "24:3415",
+          "variable": "imgIosSignal"
+        },
+        {
+          "node": "60:940",
+          "variable": "imgIosSignal"
+        },
+        {
+          "node": "207:1773",
+          "variable": "imgIosSignal"
+        },
+        {
+          "node": "60:571",
+          "variable": "imgIosSignal"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "b616c.svg",
+      "bytes": 1625,
+      "sha256": "ee2b3b5b781656e0580aa38806c194f74a65646c1fda0893354674cf8e0eb44f",
+      "intrinsicSize": [
+        16.0,
+        16.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3174",
+          "variable": "imgIosWifiSignal"
+        },
+        {
+          "node": "24:3486",
+          "variable": "imgIosWifiSignal"
+        },
+        {
+          "node": "24:3415",
+          "variable": "imgIosWifiSignal"
+        },
+        {
+          "node": "60:940",
+          "variable": "imgIosWifiSignal"
+        },
+        {
+          "node": "207:1773",
+          "variable": "imgIosWifiSignal"
+        },
+        {
+          "node": "60:571",
+          "variable": "imgIosWifiSignal"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "12afe.svg",
+      "bytes": 2546,
+      "sha256": "fbca0da01e7674bf4c198b94594ab504af59eff917eea27a68b0558b9ada5a4b",
+      "intrinsicSize": [
+        23.0,
+        16.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3174",
+          "variable": "imgIosBatteryFull"
+        },
+        {
+          "node": "24:3486",
+          "variable": "imgIosBatteryFull"
+        },
+        {
+          "node": "24:3415",
+          "variable": "imgIosBatteryFull"
+        },
+        {
+          "node": "60:940",
+          "variable": "imgIosBatteryFull"
+        },
+        {
+          "node": "207:1773",
+          "variable": "imgIosBatteryFull"
+        },
+        {
+          "node": "60:571",
+          "variable": "imgIosBatteryFull"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "5e2d6.svg",
+      "bytes": 233,
+      "sha256": "116c3df983cea5358fdf41bec7d1d990a67e92a8a496de30edd040af2687c6a4",
+      "intrinsicSize": [
+        9.0,
+        9.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3174",
+          "variable": "imgEllipse"
+        }
+      ],
+      "callSites": [
+        "lib/calendar/presentation/calendar_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "a04ee.svg",
+      "bytes": 349,
+      "sha256": "e471beae91dcbcc6bf1d124e22675b09cf93324fac7b39abcdc1738861b53370",
+      "intrinsicSize": [
+        9.0,
+        9.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3174",
+          "variable": "imgEllipse1"
+        }
+      ],
+      "callSites": [
+        "lib/calendar/presentation/calendar_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "f8ec5.svg",
+      "bytes": 681,
+      "sha256": "db3c09244d8a166e8be72e2f8d74021ae1d947b5de481bef58f6c4845967bf29",
+      "intrinsicSize": [
+        22.0,
+        22.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3174",
+          "variable": "imgNavigationssymbol"
+        },
+        {
+          "node": "24:3486",
+          "variable": "imgNavigationssymbol"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "5ada5.svg",
+      "bytes": 855,
+      "sha256": "4941af0bde5edae9865965eb752cec00eeba2a06774c555c6f4d3762b99db5fe",
+      "intrinsicSize": [
+        22.0,
+        22.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3174",
+          "variable": "imgNavigationssymbol1"
+        },
+        {
+          "node": "24:3415",
+          "variable": "imgNavigationssymbol1"
+        },
+        {
+          "node": "60:940",
+          "variable": "imgCompass"
+        },
+        {
+          "node": "60:571",
+          "variable": "imgCompass"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "6ad9e.svg",
+      "bytes": 834,
+      "sha256": "c2b449decfa021ebd551bc169c1e0a6e06f7484045814d300142277a6f9fbab9",
+      "intrinsicSize": [
+        22.0,
+        22.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3174",
+          "variable": "imgNavigationssymbol2"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "3265f.svg",
+      "bytes": 1024,
+      "sha256": "5c6c366e1bacf919210fd3d65bac9092d7badd04273073cbb17aeec244c0d09b",
+      "intrinsicSize": [
+        22.0,
+        22.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3174",
+          "variable": "imgNavigationssymbol3"
+        },
+        {
+          "node": "24:3486",
+          "variable": "imgNavigationssymbol3"
+        },
+        {
+          "node": "24:3415",
+          "variable": "imgNavigationssymbol3"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "75d8d.svg",
+      "bytes": 235,
+      "sha256": "05f908848fbbb7bc64b1da1bacfe595875fd9fd9aa42847922f3d84c7c398471",
+      "intrinsicSize": [
+        86.0,
+        86.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3174",
+          "variable": "imgEinfassung"
+        },
+        {
+          "node": "24:3486",
+          "variable": "imgEinfassung"
+        },
+        {
+          "node": "24:3415",
+          "variable": "imgEinfassung"
+        },
+        {
+          "node": "60:940",
+          "variable": "imgEllipse1"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "aa209.svg",
+      "bytes": 241,
+      "sha256": "5d969c97523a3a1ea7fae6d052780dfa74aed7f3628b0b7ac9b4c532be84b8cf",
+      "intrinsicSize": [
+        57.0,
+        57.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3174",
+          "variable": "imgErfassen"
+        },
+        {
+          "node": "24:3486",
+          "variable": "imgErfassen"
+        },
+        {
+          "node": "24:3415",
+          "variable": "imgErfassen"
+        },
+        {
+          "node": "60:940",
+          "variable": "imgEllipse2"
+        },
+        {
+          "node": "60:571",
+          "variable": "imgEllipse2"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "a4365.svg",
+      "bytes": 350,
+      "sha256": "1006ab7cd27567d0347e0b3f365c67fdde3cd32940ae025fa0d92d2acacf0eee",
+      "intrinsicSize": [
+        31.5,
+        31.5
+      ],
+      "designReferences": [
+        {
+          "node": "24:3174",
+          "variable": "imgHinzufugen"
+        },
+        {
+          "node": "24:3486",
+          "variable": "imgHinzufugen"
+        },
+        {
+          "node": "24:3415",
+          "variable": "imgHinzufugen"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "ef7b0.png",
+      "bytes": 170272,
+      "sha256": "2630b8125e947ac85adaba7c25677ee505c5f234b85bcb7a19fd5a2eef903e6f",
+      "intrinsicSize": [
+        928,
+        1152
+      ],
+      "designReferences": [
+        {
+          "node": "24:3486",
+          "variable": "imgCardGentle"
+        }
+      ],
+      "callSites": [
+        "lib/recommendations/presentation/recommendations_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "46ad5.png",
+      "bytes": 261200,
+      "sha256": "8228d61eb399a51b21b7f3205a793e129e438bc1cbe7b0d3c7ea4c043482e8e1",
+      "intrinsicSize": [
+        928,
+        1152
+      ],
+      "designReferences": [
+        {
+          "node": "24:3486",
+          "variable": "imgCardWalks"
+        }
+      ],
+      "callSites": [
+        "lib/recommendations/presentation/recommendations_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "57e5f.png",
+      "bytes": 174802,
+      "sha256": "1e042330a74de0d614ac4c44299f42f934fa9235bf99c8ba821fbb51acb161ae",
+      "intrinsicSize": [
+        928,
+        1152
+      ],
+      "designReferences": [
+        {
+          "node": "24:3486",
+          "variable": "imgCardSoup"
+        }
+      ],
+      "callSites": [
+        "lib/recommendations/presentation/recommendations_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "186d9.png",
+      "bytes": 172051,
+      "sha256": "9e90d2fbbfea9a49a625a5787f905a786e5289be3067a5f64e94d56385ca3430",
+      "intrinsicSize": [
+        928,
+        1152
+      ],
+      "designReferences": [
+        {
+          "node": "24:3486",
+          "variable": "imgCardOatmeal"
+        }
+      ],
+      "callSites": [
+        "lib/recommendations/presentation/recommendations_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "e484e.svg",
+      "bytes": 600,
+      "sha256": "353d0210c07f9e8c763451effabac662ce62d40d6207a9355312e5ad90af15e3",
+      "intrinsicSize": [
+        20.0,
+        20.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3486",
+          "variable": "imgInfo"
+        }
+      ],
+      "callSites": [
+        "lib/recommendations/presentation/recommendations_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "94c62.svg",
+      "bytes": 855,
+      "sha256": "11eaf727dbf5f3396ae29067d42e59d50d7f7366bfd40768a75d5fb34a92a63c",
+      "intrinsicSize": [
+        22.0,
+        22.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3486",
+          "variable": "imgNavigationssymbol1"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "a2d7f.svg",
+      "bytes": 834,
+      "sha256": "097a2fb5c35e95d35088254abfb1a43b2370a7cb9ac9b9b47eada9d9c652a706",
+      "intrinsicSize": [
+        22.0,
+        22.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3486",
+          "variable": "imgNavigationssymbol2"
+        },
+        {
+          "node": "24:3415",
+          "variable": "imgNavigationssymbol2"
+        },
+        {
+          "node": "60:940",
+          "variable": "imgCalendarDays"
+        },
+        {
+          "node": "60:571",
+          "variable": "imgCalendarDays"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "2acf8.svg",
+      "bytes": 528,
+      "sha256": "68bdb569c98dd4a6270eb88e8aa91253f8e33bcb8f8631ac14409d7599760ae1",
+      "intrinsicSize": [
+        22.0,
+        22.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3415",
+          "variable": "imgSlidersHorizontal"
+        }
+      ],
+      "callSites": [
+        "lib/cycle/presentation/cycle_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "a78ab.svg",
+      "bytes": 312,
+      "sha256": "3514356b57fa3e07d0ee46c1ad032bd8ebc3979cf0a0e69bd2a01ee17ca5de01",
+      "intrinsicSize": [
+        18.0,
+        18.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3415",
+          "variable": "imgChevronRight"
+        }
+      ],
+      "callSites": [
+        "lib/cycle/presentation/cycle_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "4d5fb.svg",
+      "bytes": 1170,
+      "sha256": "b013dfb468465fd391a29c8f1429f344feebe4fb2b44affffb3bed11c8df49d8",
+      "intrinsicSize": [
+        22.0,
+        22.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3415",
+          "variable": "imgBell"
+        }
+      ],
+      "callSites": [
+        "lib/cycle/presentation/cycle_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "e24ba.svg",
+      "bytes": 320,
+      "sha256": "a8509f66a14e68f680ab840d4bca429f5b60e2a9658b3123d6bfcb9bbd4bd937",
+      "intrinsicSize": [
+        44.0,
+        27.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3415",
+          "variable": "imgSwitchOff"
+        }
+      ],
+      "callSites": [
+        "lib/cycle/presentation/cycle_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "8635b.svg",
+      "bytes": 543,
+      "sha256": "a9ebdb1dd37f87c17a5b6eb215c8f793de450cdee4e62264766283d54dfa562d",
+      "intrinsicSize": [
+        22.0,
+        22.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3415",
+          "variable": "imgDownload"
+        }
+      ],
+      "callSites": [
+        "lib/cycle/presentation/cycle_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "f680b.svg",
+      "bytes": 901,
+      "sha256": "29a856504b776bfdba965100fbb591d118c1df98a6f08888e28117b3d35a66d6",
+      "intrinsicSize": [
+        22.0,
+        22.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3415",
+          "variable": "imgTrash2"
+        }
+      ],
+      "callSites": [
+        "lib/cycle/presentation/cycle_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "50cd2.svg",
+      "bytes": 815,
+      "sha256": "3eb55325e5684691134bcb31057ef6f3aae8e53e3630be1a3babfaaa5202cf8a",
+      "intrinsicSize": [
+        22.0,
+        22.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3415",
+          "variable": "imgShield"
+        }
+      ],
+      "callSites": [
+        "lib/cycle/presentation/cycle_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "04493.svg",
+      "bytes": 609,
+      "sha256": "c9cc048efebe4e7f958b115e0f8dd07b606d5dbfbebfcc8c6c35943591a00bb9",
+      "intrinsicSize": [
+        22.0,
+        22.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3415",
+          "variable": "imgInfo"
+        }
+      ],
+      "callSites": [
+        "lib/cycle/presentation/cycle_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "87364.svg",
+      "bytes": 872,
+      "sha256": "6f2af6b7e6bd0d4e8fc8d49534f4754cb1c83e9d357955bedd2cf003adc98ca1",
+      "intrinsicSize": [
+        18.0,
+        18.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3415",
+          "variable": "imgShieldCheck"
+        }
+      ],
+      "callSites": [
+        "lib/cycle/presentation/cycle_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "fae57.svg",
+      "bytes": 681,
+      "sha256": "7a3c224bbea31f61745689b19584a59d98c11b92bbff0d51eb90b42a04dc5755",
+      "intrinsicSize": [
+        22.0,
+        22.0
+      ],
+      "designReferences": [
+        {
+          "node": "24:3415",
+          "variable": "imgNavigationssymbol"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "e254f.svg",
+      "bytes": 1029,
+      "sha256": "d8c4fea905cda7657454be8aec7f69baf7305ad26d8955594f3e15876bfa4a15",
+      "intrinsicSize": [
+        22.0,
+        22.0
+      ],
+      "designReferences": [
+        {
+          "node": "60:940",
+          "variable": "imgHouse"
+        },
+        {
+          "node": "60:571",
+          "variable": "imgHouse"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "54065.svg",
+      "bytes": 358,
+      "sha256": "95e61f1eb91a029feffb9b4fe73a6a4d6d6bf008a021e664e22f8dd9b4bbf2a7",
+      "intrinsicSize": [
+        32.0,
+        32.0
+      ],
+      "designReferences": [
+        {
+          "node": "60:940",
+          "variable": "imgBackButton"
+        }
+      ],
+      "callSites": [
+        "lib/journal/presentation/day_entry_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "33621.svg",
+      "bytes": 384,
+      "sha256": "373cf730efb3596e7e26d60a6fe4e8f8f9cde5af40bffa1f9d3092f03551b1b1",
+      "intrinsicSize": [
+        26.0,
+        26.0
+      ],
+      "designReferences": [
+        {
+          "node": "60:940",
+          "variable": "imgHandle"
+        }
+      ],
+      "callSites": [
+        "lib/journal/presentation/day_entry_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "97354.svg",
+      "bytes": 592,
+      "sha256": "064b1034ab4bb215a676af72afaa4694db944409640b680fa8cf8c6828457b58",
+      "intrinsicSize": [
+        712.5,
+        1141.5
+      ],
+      "designReferences": [
+        {
+          "node": "207:1773",
+          "variable": "imgVector5"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_splash.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "e0a42.svg",
+      "bytes": 7025,
+      "sha256": "5d67dd686807dba28933c60a3505a1258b30e043809498239cc85374709fd106",
+      "intrinsicSize": [
+        82.8455,
+        87.5923
+      ],
+      "designReferences": [
+        {
+          "node": "207:1773",
+          "variable": "imgGroup"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_splash.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "f681a.svg",
+      "bytes": 6612,
+      "sha256": "54ca09fbf95e17850c114dda84c5d93e5606a70eaa59ab00fb9353944c3a45a2",
+      "intrinsicSize": [
+        77.5316,
+        74.6057
+      ],
+      "designReferences": [
+        {
+          "node": "207:1773",
+          "variable": "imgGroup1"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_splash.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "815c6.svg",
+      "bytes": 7800,
+      "sha256": "a52fcbd8f9b5678a318457e2cd90033f53c4257a2d824466e703efd243c21a6e",
+      "intrinsicSize": [
+        76.2775,
+        96.6128
+      ],
+      "designReferences": [
+        {
+          "node": "207:1773",
+          "variable": "imgGroup2"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_splash.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "4dc97.svg",
+      "bytes": 6418,
+      "sha256": "fae0f53aef08e057212741c01f4f9d8912b339811d2df1f3f0d7ee0b2552941d",
+      "intrinsicSize": [
+        72.6057,
+        76.4569
+      ],
+      "designReferences": [
+        {
+          "node": "207:1773",
+          "variable": "imgGroup3"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_splash.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "750f8.svg",
+      "bytes": 7335,
+      "sha256": "7e10a06bea65ed723e3779b970773d29a7ed2aab0d9d219fdd9818f744d8b3f0",
+      "intrinsicSize": [
+        77.9792,
+        75.3355
+      ],
+      "designReferences": [
+        {
+          "node": "207:1773",
+          "variable": "imgGroup4"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_splash.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "feccc.svg",
+      "bytes": 7557,
+      "sha256": "b135f22bcbb3dbe3ca2622376a4bf2bd7875dfa374132e92ba70259ddb220699",
+      "intrinsicSize": [
+        73.3817,
+        75.3821
+      ],
+      "designReferences": [
+        {
+          "node": "207:1773",
+          "variable": "imgGroup5"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_splash.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "afed9.svg",
+      "bytes": 315,
+      "sha256": "209b63b7a9c17e1636b3920eebf253cf1a772196c0741fa69a84468ae536c256",
+      "intrinsicSize": [
+        44.0,
+        44.0
+      ],
+      "designReferences": [
+        {
+          "node": "60:571",
+          "variable": "imgPreviousMonth"
+        }
+      ],
+      "callSites": [
+        "lib/calendar/presentation/calendar_widgets.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "2ccbd.svg",
+      "bytes": 311,
+      "sha256": "cc388468f5c0ae039d3cb5e60812c88b4ccb774ba3bc910ed6fa2fa837f633ae",
+      "intrinsicSize": [
+        44.0,
+        44.0
+      ],
+      "designReferences": [
+        {
+          "node": "60:571",
+          "variable": "imgNextMonth"
+        }
+      ],
+      "callSites": [
+        "lib/calendar/presentation/calendar_widgets.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "d6ebf.svg",
+      "bytes": 435,
+      "sha256": "d2064d765aa6fb1e90bf7fea0a1f830cb1a6f674ffd321a5bd8802fe147d6453",
+      "intrinsicSize": [
+        20.0015,
+        20.0057
+      ],
+      "designReferences": [
+        {
+          "node": "60:571",
+          "variable": "imgGroup8"
+        }
+      ],
+      "callSites": [
+        "lib/journal/presentation/choose_date_page.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "f1a37.svg",
+      "bytes": 234,
+      "sha256": "cfabfd1aa7746f20ae0b8a6e971f338bb4a8576e88821ffd1e4202189d8322d2",
+      "intrinsicSize": [
+        86.0,
+        86.0
+      ],
+      "designReferences": [
+        {
+          "node": "60:571",
+          "variable": "imgEllipse1"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    },
+    {
+      "asset": "f7f8a.svg",
+      "bytes": 339,
+      "sha256": "bc51f24410f4427225ba3a1ab32a51bf4262ce091cc80c070ed318d1c74e5153",
+      "intrinsicSize": [
+        31.5,
+        31.5
+      ],
+      "designReferences": [
+        {
+          "node": "60:571",
+          "variable": "imgVector1"
+        }
+      ],
+      "callSites": [
+        "lib/app/presentation/kuyena_components.dart"
+      ],
+      "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kuyena_tracker/main.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:kuyena_tracker/periods/presentation/period_home_page.dart';
 import 'package:kuyena_tracker/periods/application/period_diary.dart';
 import 'package:kuyena_tracker/periods/data/local_period_repository.dart';
 import 'package:kuyena_tracker/periods/presentation/period_entry_dialog.dart';
@@ -10,16 +11,19 @@ import 'support/memory_period_storage.dart';
 Future<void> openDiary(WidgetTester tester, MemoryPeriodStorage storage) async {
   addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
   await tester.pumpWidget(
-    ZyklusApp(
+    MaterialApp(
       key: UniqueKey(),
-      diary: PeriodDiary(
-        repository: LocalPeriodRepository(storage),
-        clock: () => DateTime(2026, 10, 18),
+      locale: const Locale('de'),
+      supportedLocales: const [Locale('de')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      home: PeriodHomePage(
+        diary: PeriodDiary(
+          repository: LocalPeriodRepository(storage),
+          clock: () => DateTime(2026, 10, 18),
+        ),
       ),
     ),
   );
-  await tester.pumpAndSettle();
-  await tester.tap(find.byKey(const ValueKey('home-nav-Calendar')));
   await tester.pumpAndSettle();
 }
 

@@ -63,6 +63,7 @@ flutter:
 
   assets:
     - assets/home/
+    - assets/screens/
 
   fonts:
     - family: NunitoSans

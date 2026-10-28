@@ -1,12 +1,13 @@
 # Kuyena
 
 Lokales Zyklustagebuch mit Flutter und Dart für Android, iPhone und Browser.
-Der erste Funktionsumfang dokumentiert Perioden mit Beginn und optionalem Ende. Symptome,
-Empfehlungen und Export sind noch nicht implementiert. Der nächste Periodenbeginn wird näherungsweise aus persönlichen Startabständen geschätzt.
+Kuyena dokumentiert Perioden mit Beginn und optionalem Ende sowie Symptome, Stimmung, Energie und Notizen pro Tag. Kalender, allgemeine Ideen und ein JSON-Export ergänzen das lokale Tagebuch. Der nächste Periodenbeginn wird näherungsweise aus persönlichen Startabständen geschätzt.
 
 ## Aktueller Ablauf
 
-- Beginn und optionales Ende erfassen, Verlauf anzeigen, Angaben korrigieren.
+- Mit + / Log ein Datum wählen und Symptome, Blutungsstärke, Stimmung, Energie oder eine Notiz speichern.
+- Tageseinträge im Kalender wieder öffnen und bearbeiten.
+- Unter Cycle → Edit cycle data Periodenbeginn und optionales Ende erfassen und korrigieren.
 - Ein Ende später ergänzen oder wieder als unbekannt angeben.
 - „Periode läuft noch“ ausdrücklich markieren und mit einem Enddatum beenden.
 - Auf Home Tage seit Beginn bzw. den dokumentierten Periodentag im Kreis anzeigen.
@@ -14,8 +15,9 @@ Empfehlungen und Export sind noch nicht implementiert. Der nächste Periodenbegi
 - Einträge beim erneuten Öffnen aus dem lokalen Speicher laden.
 - Keine Konten, keine Synchronisation und kein Backend für Gesundheitsdaten.
 
-Über den Plusknopf auf Home oder „Periode eintragen“ im Verlauf öffnet sich
-die Eingabemaske. Beginn wählen, bei Bedarf „Ende (optional)“ auswählen und
+Der Plusknopf öffnet zunächst die Datumsauswahl für einen Tageseintrag.
+Die Periodenerfassung erreichst du über Cycle → Edit cycle data →
+„Periode eintragen“. Dort Beginn wählen, bei Bedarf „Ende (optional)“ auswählen und
 „Speichern“ drücken. Bestehende Einträge lassen sich über „Korrigieren“
 bearbeiten. Ein leeres Ende bedeutet unbekannt. Angegebene Enddaten müssen
 zwischen Beginn und heute liegen. Abbrechen speichert keine Änderungen.
@@ -101,3 +103,8 @@ die Daten nicht um; beschädigte oder unbekannte Formate werden gemeldet.
 - [Flutter Secure Storage: Plattformen, Android-Backup, iOS-Konfiguration und Web-Grenzen](https://pub.dev/packages/flutter_secure_storage)
 - [Web-Implementierung und HTTPS-Anforderung](https://pub.dev/packages/flutter_secure_storage_web)
 - [Browser-Speicher und Origin](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage)
+
+
+## Weitere Figma-Seiten
+
+Kalender, Ansichtsmenü, Tageseintrag, Datumsauswahl, Empfehlungen, Cycle & App und Startbildschirm sind umgesetzt. Die Navigation und lokalen Funktionen sind in [docs/figma-seiten.md](docs/figma-seiten.md) erklärt. Mit **+ / Log** wird ein Tageseintrag erfasst; Periodenbeginn und -ende verwaltest du unter **Cycle → Edit cycle data**.

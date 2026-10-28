@@ -3,9 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kuyena_tracker/main.dart';
+import 'package:kuyena_tracker/journal/application/day_journal.dart';
+import 'package:kuyena_tracker/journal/data/local_journal_repository.dart';
 import 'package:kuyena_tracker/periods/application/period_diary.dart';
 import 'package:kuyena_tracker/periods/data/local_period_repository.dart';
-import 'package:kuyena_tracker/periods/presentation/period_entry_dialog.dart';
 
 import '../support/memory_period_storage.dart';
 
@@ -25,6 +26,7 @@ MemoryPeriodStorage savedPeriod({
 Future<MemoryPeriodStorage> openHome(
   WidgetTester tester, {
   MemoryPeriodStorage? storage,
+  MemoryPeriodStorage? journalStorage,
   DateTime Function()? clock,
 }) async {
   storage ??= MemoryPeriodStorage();
@@ -32,6 +34,12 @@ Future<MemoryPeriodStorage> openHome(
   await tester.pumpWidget(
     ZyklusApp(
       key: UniqueKey(),
+      journal: DayJournal(
+        repository: LocalJournalRepository(
+          journalStorage ?? MemoryPeriodStorage(),
+        ),
+        clock: clock ?? () => DateTime(2026, 10, 22),
+      ),
       diary: PeriodDiary(
         repository: LocalPeriodRepository(storage),
         clock: clock ?? () => DateTime(2026, 10, 22),
@@ -67,24 +75,24 @@ void main() {
     final storage = await openHome(tester);
     await tester.tap(find.byKey(const ValueKey('home-log-button')));
     await tester.pumpAndSettle();
-    expect(find.byType(PeriodEntryDialog), findsOneWidget);
-    expect(find.text('Ende (optional)'), findsOneWidget);
-    await tester.tap(find.text('Abbrechen'));
+    expect(find.text('Choose a date'), findsOneWidget);
+    await tester.ensureVisible(find.text('Cancel').last);
+    await tester.tap(find.text('Cancel').last);
     await tester.pumpAndSettle();
     expect(storage.value, isNull);
-    expect(find.textContaining('Noch keine Einträge.'), findsOneWidget);
+    expect(find.text('Kein Eintrag'), findsOneWidget);
   });
 
   testWidgets('Plus wartet bei Lesefehler mit der Erfassung', (tester) async {
-    final storage = await openHome(tester);
-    storage.failRead = true;
+    final journalStorage = MemoryPeriodStorage()..failRead = true;
+    await openHome(tester, journalStorage: journalStorage);
     await tester.tap(find.byKey(const ValueKey('home-log-button')));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Continue'));
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
     expect(find.byType(DatePickerDialog), findsNothing);
-    expect(
-      find.textContaining('Deine Einträge konnten nicht geladen werden.'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Could not load this day.'), findsOneWidget);
   });
 
   testWidgets('Home bleibt auf kleinem Handy und im Browser bedienbar', (
@@ -105,14 +113,10 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.byKey(const ValueKey('home-nav-For you')));
       await tester.pumpAndSettle();
-      expect(
-        find.textContaining('keine persönlichen Empfehlungen'),
-        findsOneWidget,
-      );
-      await tester.ensureVisible(find.text('Verstanden'));
-      await tester.tap(find.text('Verstanden'));
+      expect(find.text('Recommendations'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('home-nav-Home')));
       await tester.pumpAndSettle();
-      expect(find.text('Verstanden'), findsNothing);
+      expect(find.text('Hey, girl!'), findsOneWidget);
     }
   });
 
@@ -242,7 +246,7 @@ void main() {
     'Speichern und Rückkehr zu Home aktualisieren den Tageszähler sofort',
     (tester) async {
       await openHome(tester);
-      await tester.tap(find.byKey(const ValueKey('home-log-button')));
+      await tester.tap(find.byKey(const ValueKey('period-status-ring')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('period-start-field')));
       await tester.pumpAndSettle();
@@ -271,7 +275,10 @@ void main() {
     (tester) async {
       final storage = savedPeriod(ongoing: true);
       await openHome(tester, storage: storage);
-      await tester.tap(find.byKey(const ValueKey('home-nav-Calendar')));
+      await tester.tap(find.byKey(const ValueKey('home-nav-Cycle')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Edit cycle data'));
+      await tester.tap(find.text('Edit cycle data'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Korrigieren'));
       await tester.tap(find.text('Korrigieren'));
@@ -290,9 +297,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Zurück'));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('home-nav-Home')));
+      await tester.pumpAndSettle();
       expect(find.text('Tag 2'), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('home-nav-Calendar')));
+      await tester.tap(find.byKey(const ValueKey('home-nav-Cycle')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Edit cycle data'));
+      await tester.tap(find.text('Edit cycle data'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Löschen'));
       await tester.tap(find.text('Löschen'));
@@ -305,6 +317,8 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Zurück'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('home-nav-Home')));
       await tester.pumpAndSettle();
       expect(find.text('Kein Eintrag'), findsOneWidget);
       expect(storage.value, isNull);

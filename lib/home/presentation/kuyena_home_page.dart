@@ -18,7 +18,17 @@ import 'period_status_ring.dart';
 
 /// The ring uses saved observations; the other cards remain design examples.
 class KuyenaHomePage extends StatefulWidget {
-  const KuyenaHomePage({super.key, required this.diary});
+  const KuyenaHomePage({
+    super.key,
+    required this.diary,
+    this.onCalendar,
+    this.onLog,
+    this.onForYou,
+    this.onCycle,
+  });
+
+  final VoidCallback? onCalendar, onForYou, onCycle;
+  final ValueChanged<CalendarDate>? onLog;
 
   final PeriodDiary diary;
 
@@ -335,13 +345,19 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
                 information: _InformationCards(
                   scale: 1.1,
                   onPreview: _showPreview,
-                  onMovement: () => _showPreview(recommendations: true),
+                  onMovement:
+                      widget.onForYou ??
+                      () => _showPreview(recommendations: true),
                 ),
                 onToday: _selectToday,
-                onCalendar: () => _openDiary(),
-                onLog: () => _openDiary(log: true),
-                onForYou: () => _showPreview(recommendations: true),
-                onCycle: () => _openDiary(),
+                onCalendar: widget.onCalendar ?? () => _openDiary(),
+                onLog: widget.onLog == null
+                    ? () => _openDiary(log: true)
+                    : () => widget.onLog!(_selectedDate),
+                onForYou:
+                    widget.onForYou ??
+                    () => _showPreview(recommendations: true),
+                onCycle: widget.onCycle ?? () => _openDiary(),
                 onDemo: _showPreview,
               );
             }
@@ -472,9 +488,11 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
                                         child: _InformationCards(
                                           scale: scale,
                                           onPreview: _showPreview,
-                                          onMovement: () => _showPreview(
-                                            recommendations: true,
-                                          ),
+                                          onMovement:
+                                              widget.onForYou ??
+                                              () => _showPreview(
+                                                recommendations: true,
+                                              ),
                                         ),
                                       ),
                                       SizedBox(height: 25 * scale),
@@ -486,11 +504,18 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
                           ),
                           _BottomNavigation(
                             scale: scale,
+                            logLabel: widget.onLog == null
+                                ? 'Periode eintragen'
+                                : 'Log your day',
                             onHome: _selectToday,
-                            onCalendar: () => _openDiary(),
-                            onLog: () => _openDiary(log: true),
-                            onForYou: () => _showPreview(recommendations: true),
-                            onCycle: () => _openDiary(),
+                            onCalendar: widget.onCalendar ?? () => _openDiary(),
+                            onLog: widget.onLog == null
+                                ? () => _openDiary(log: true)
+                                : () => widget.onLog!(_selectedDate),
+                            onForYou:
+                                widget.onForYou ??
+                                () => _showPreview(recommendations: true),
+                            onCycle: widget.onCycle ?? () => _openDiary(),
                           ),
                         ],
                       ),
@@ -739,6 +764,7 @@ class _InformationCards extends StatelessWidget {
 class _BottomNavigation extends StatelessWidget {
   const _BottomNavigation({
     required this.scale,
+    required this.logLabel,
     required this.onHome,
     required this.onCalendar,
     required this.onLog,
@@ -746,6 +772,7 @@ class _BottomNavigation extends StatelessWidget {
     required this.onCycle,
   });
   final double scale;
+  final String logLabel;
   final VoidCallback onHome;
   final VoidCallback onCalendar;
   final VoidCallback onLog;
@@ -851,7 +878,7 @@ class _BottomNavigation extends StatelessWidget {
             left: (412 / 2 - 43) * scale,
             child: Semantics(
               button: true,
-              label: 'Periode eintragen',
+              label: logLabel,
               excludeSemantics: true,
               child: InkWell(
                 key: const ValueKey('home-log-button'),
