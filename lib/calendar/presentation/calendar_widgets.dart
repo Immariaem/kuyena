@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'period_day_drag_selection.dart';
 import '../../app/presentation/kuyena_components.dart';
 import '../../home/presentation/home_design.dart';
 import '../../periods/domain/calendar_date.dart';
@@ -23,41 +24,27 @@ class MonthGrid extends StatelessWidget {
     this.entryDays = const {},
     this.picker = false,
     this.mini = false,
+    this.periodEditing = false,
+    this.onRangeStart,
+    this.onRangeUpdate,
+    this.onRangeEnd,
+    this.onRangeCancel,
   });
   final DateTime month;
   final CalendarDate today;
   final CalendarDate? selected;
   final ValueChanged<CalendarDate> onSelect;
   final Set<CalendarDate> periodDays, entryDays;
-  final bool picker, mini;
+  final bool picker, mini, periodEditing;
+  final ValueChanged<CalendarDate>? onRangeStart, onRangeUpdate;
+  final VoidCallback? onRangeEnd, onRangeCancel;
   @override
   Widget build(BuildContext context) {
     final offset = DateTime(month.year, month.month, 1).weekday - 1;
     final count = DateTime(month.year, month.month + 1, 0).day;
     final rows = monthRows(month);
-    return Column(
+    final dayRows = Column(
       children: [
-        Row(
-          children: [
-            for (final d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
-              Expanded(
-                child: SizedBox(
-                  height: picker ? 28 : 18,
-                  child: Center(
-                    child: Text(
-                      mini ? d[0] : d,
-                      style: HomeDesign.text(
-                        mini ? 8 : 11,
-                        color: HomeDesign.muted,
-                        weight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        SizedBox(height: picker ? 4 : 10),
         for (var row = 0; row < rows; row++)
           SizedBox(
             height: mini
@@ -76,16 +63,37 @@ class MonthGrid extends StatelessWidget {
                           return const SizedBox.shrink();
                         }
                         final date = CalendarDate(month.year, month.month, day);
-                        final future = picker && date.compareTo(today) > 0;
+                        final future =
+                            (picker || periodEditing) &&
+                            date.compareTo(today) > 0;
                         final isSelected = picker && selected == date;
                         final isPeriod = periodDays.contains(date);
                         final fill = isSelected || isPeriod;
+                        final connectedLeft =
+                            !picker &&
+                            isPeriod &&
+                            col > 0 &&
+                            day > 1 &&
+                            periodDays.contains(date.addDays(-1));
+                        final connectedRight =
+                            !picker &&
+                            isPeriod &&
+                            col < 6 &&
+                            day < count &&
+                            periodDays.contains(date.addDays(1));
+                        final connected = connectedLeft || connectedRight;
+                        final diameter = mini ? 23.0 : 40.0;
                         return Semantics(
-                          label: fullDate(date),
-                          selected: selected == date,
+                          label:
+                              '${fullDate(date)}${isPeriod && !picker ? ', Periodentag' : ''}',
+                          selected: periodEditing ? isPeriod : selected == date,
+                          enabled: !future,
                           button: true,
                           child: Tooltip(
                             message: fullDate(date),
+                            triggerMode: periodEditing
+                                ? TooltipTriggerMode.manual
+                                : null,
                             child: InkWell(
                               key: ValueKey(
                                 '${picker ? 'pick' : 'calendar'}-${date.iso}',
@@ -94,10 +102,20 @@ class MonthGrid extends StatelessWidget {
                               customBorder: const CircleBorder(),
                               child: Center(
                                 child: Container(
-                                  width: mini ? 23 : 40,
-                                  height: mini ? 23 : 40,
+                                  key: isPeriod && !picker
+                                      ? ValueKey('period-band-${date.iso}')
+                                      : null,
+                                  width: connected ? double.infinity : diameter,
+                                  height: diameter,
                                   decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
+                                    borderRadius: BorderRadius.horizontal(
+                                      left: connectedLeft
+                                          ? Radius.zero
+                                          : Radius.circular(diameter / 2),
+                                      right: connectedRight
+                                          ? Radius.zero
+                                          : Radius.circular(diameter / 2),
+                                    ),
                                     color: fill ? HomeDesign.red : null,
                                     border: date == today && !fill
                                         ? Border.all(
@@ -109,6 +127,18 @@ class MonthGrid extends StatelessWidget {
                                   child: Stack(
                                     alignment: Alignment.center,
                                     children: [
+                                      if (date == today && fill && !picker)
+                                        Container(
+                                          width: diameter - 6,
+                                          height: diameter - 6,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: Colors.white,
+                                              width: 1.2,
+                                            ),
+                                          ),
+                                        ),
                                       Text(
                                         '$day',
                                         style: HomeDesign.text(
@@ -160,6 +190,44 @@ class MonthGrid extends StatelessWidget {
           ),
       ],
     );
+    return Column(
+      children: [
+        Row(
+          children: [
+            for (final d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
+              Expanded(
+                child: SizedBox(
+                  height: picker ? 28 : 18,
+                  child: Center(
+                    child: Text(
+                      mini ? d[0] : d,
+                      style: HomeDesign.text(
+                        mini ? 8 : 11,
+                        color: HomeDesign.muted,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        SizedBox(height: picker ? 4 : 10),
+        if (periodEditing && !mini && !picker && onRangeStart != null)
+          PeriodDayDragSelection(
+            key: ValueKey('period-drag-${month.year}-${month.month}'),
+            month: month,
+            today: today,
+            onStart: onRangeStart!,
+            onUpdate: onRangeUpdate!,
+            onEnd: onRangeEnd!,
+            onCancel: onRangeCancel!,
+            child: dayRows,
+          )
+        else
+          dayRows,
+      ],
+    );
   }
 }
 
@@ -171,7 +239,15 @@ class MonthCard extends StatelessWidget {
     required this.onSelect,
     this.periodDays = const {},
     this.entryDays = const {},
+    this.periodEditing = false,
+    this.onRangeStart,
+    this.onRangeUpdate,
+    this.onRangeEnd,
+    this.onRangeCancel,
   });
+  final bool periodEditing;
+  final ValueChanged<CalendarDate>? onRangeStart, onRangeUpdate;
+  final VoidCallback? onRangeEnd, onRangeCancel;
   final DateTime month;
   final CalendarDate today;
   final ValueChanged<CalendarDate> onSelect;
@@ -194,6 +270,11 @@ class MonthCard extends StatelessWidget {
           onSelect: onSelect,
           periodDays: periodDays,
           entryDays: entryDays,
+          periodEditing: periodEditing,
+          onRangeStart: onRangeStart,
+          onRangeUpdate: onRangeUpdate,
+          onRangeEnd: onRangeEnd,
+          onRangeCancel: onRangeCancel,
         ),
       ],
     ),

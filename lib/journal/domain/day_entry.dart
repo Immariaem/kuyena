@@ -2,7 +2,18 @@ import '../../periods/domain/calendar_date.dart';
 
 enum FlowIntensity { none, light, medium, heavy }
 
-enum Symptom { cramps, headache, fatigue, breastTenderness }
+enum Symptom {
+  cramps,
+  headache,
+  fatigue,
+  breastTenderness,
+  bloating,
+  skinChanges,
+  backPain,
+  nausea,
+  cravings,
+  sleepProblems,
+}
 
 enum Mood { good, okay, low }
 
@@ -72,10 +83,15 @@ final class DayEntry {
 }
 
 final class JournalData {
-  JournalData({List<DayEntry> entries = const [], this.reminders = false})
-    : entries = List.unmodifiable(entries);
+  JournalData({
+    List<DayEntry> entries = const [],
+    this.reminders = false,
+    Map<CalendarDate, bool> periodDays = const {},
+  }) : entries = List.unmodifiable(entries),
+       periodDays = Map.unmodifiable(periodDays);
   final List<DayEntry> entries;
   final bool reminders;
+  final Map<CalendarDate, bool> periodDays;
   DayEntry? entryFor(CalendarDate date) {
     for (final entry in entries) {
       if (entry.date == date) return entry;

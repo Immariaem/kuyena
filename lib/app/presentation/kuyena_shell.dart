@@ -1,3 +1,10 @@
+import 'dart:async';
+import '../../profile/application/profile_controller.dart';
+import '../../profile/domain/user_profile.dart';
+import '../../periods/domain/cycle_estimate.dart';
+import '../../periods/application/period_timeline.dart';
+import '../../data/application/data_backup_service.dart';
+import '../../data/backup/backup_files.dart';
 import 'package:flutter/material.dart';
 import '../../calendar/presentation/calendar_page.dart';
 import '../../cycle/presentation/cycle_page.dart';
@@ -20,7 +27,13 @@ class KuyenaShell extends StatefulWidget {
     required this.diary,
     required this.journal,
     this.showSplash = false,
+    this.backupService,
+    this.backupFiles,
+    this.profileController,
   });
+  final DataBackupService? backupService;
+  final BackupFiles? backupFiles;
+  final ProfileController? profileController;
   final PeriodDiary diary;
   final DayJournal journal;
   final bool showSplash;
@@ -32,6 +45,8 @@ class _KuyenaShellState extends State<KuyenaShell> with WidgetsBindingObserver {
   int _tab = 0, _revision = 0;
   late bool _splash;
   JournalData? _journal;
+  Timer? _reminderTimer;
+  int? _periodDue;
   CalendarDate? _dismissedReminder;
   CalendarDate? _calendarInitialDate;
   @override
@@ -45,6 +60,7 @@ class _KuyenaShellState extends State<KuyenaShell> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _reminderTimer?.cancel();
     super.dispose();
   }
 
@@ -55,11 +71,61 @@ class _KuyenaShellState extends State<KuyenaShell> with WidgetsBindingObserver {
 
   Future<void> _loadReminder() async {
     try {
+      await widget.profileController?.load();
       final data = await widget.journal.load();
-      if (mounted) setState(() => _journal = data);
+      final periods = await widget.diary.load();
+      final timeline = PeriodTimeline.from(
+        periods: periods,
+        entries: data.entries,
+        periodDays: data.periodDays,
+        asOf: widget.diary.today,
+      );
+      final estimate = CycleEstimate.fromPeriods(
+        timeline.periods,
+        initialLength: widget.profileController?.value?.exactCycleDays,
+      );
+      final latest = timeline.periods.isEmpty ? null : timeline.periods.first;
+      if (mounted) {
+        setState(() {
+          _journal = data;
+          _periodDue = latest?.isOngoing == true
+              ? null
+              : estimate == null
+              ? null
+              : widget.diary.today.daysUntil(estimate.expectedStart);
+        });
+      }
+      _scheduleReminder();
     } catch (_) {
       if (mounted) setState(() => _journal = null);
     }
+  }
+
+  bool get _reminderTimeReached {
+    final profile = widget.profileController?.value;
+    if (profile == null) return true;
+    final now = widget.diary.clock();
+    return now.hour * 60 + now.minute >= profile.reminderMinute;
+  }
+
+  void _scheduleReminder() {
+    _reminderTimer?.cancel();
+    final profile = widget.profileController?.value;
+    if (profile == null || !mounted) return;
+    final now = widget.diary.clock(), minute = profile.reminderMinute;
+    var due = DateTime(now.year, now.month, now.day, minute ~/ 60, minute % 60);
+    if (!due.isAfter(now)) {
+      due = DateTime(
+        now.year,
+        now.month,
+        now.day + 1,
+        minute ~/ 60,
+        minute % 60,
+      );
+    }
+    _reminderTimer = Timer(due.difference(now), () {
+      if (mounted) _loadReminder();
+    });
   }
 
   void _select(int tab, {CalendarDate? calendarDate}) {
@@ -93,6 +159,7 @@ class _KuyenaShellState extends State<KuyenaShell> with WidgetsBindingObserver {
           journal: widget.journal,
           initialDate: date ?? widget.diary.today,
           active: _tab,
+          profile: widget.profileController?.value,
           onSelectTab: _select,
         ),
       ),
@@ -120,6 +187,9 @@ class _KuyenaShellState extends State<KuyenaShell> with WidgetsBindingObserver {
       ),
       2 => RecommendationsPage(onSelect: _select, onLog: _log),
       3 => CyclePage(
+        backupService: widget.backupService,
+        backupFiles: widget.backupFiles,
+        profileController: widget.profileController,
         key: ValueKey('cycle-$_revision'),
         diary: widget.diary,
         journal: widget.journal,
@@ -135,13 +205,21 @@ class _KuyenaShellState extends State<KuyenaShell> with WidgetsBindingObserver {
         onLog: _log,
         onForYou: () => _select(2),
         onCycle: () => _select(3),
+        initialCycleLength: widget.profileController?.value?.exactCycleDays,
       ),
     };
     final today = widget.diary.today;
+    final periodReminder =
+        widget.profileController?.value?.periodReminder == true &&
+        _periodDue != null &&
+        _periodDue! >= 0 &&
+        _periodDue! <= 2;
     final remind =
         _tab == 0 &&
-        _journal?.reminders == true &&
-        _journal?.entryFor(today)?.hasWellbeing != true &&
+        _reminderTimeReached &&
+        (periodReminder ||
+            (_journal?.reminders == true &&
+                _journal?.entryFor(today)?.hasWellbeing != true)) &&
         _dismissedReminder != today;
     return PopScope(
       canPop: _tab == 0,
@@ -172,7 +250,9 @@ class _KuyenaShellState extends State<KuyenaShell> with WidgetsBindingObserver {
                           children: [
                             Expanded(
                               child: Text(
-                                'A moment for you? Log today when you are ready.',
+                                periodReminder
+                                    ? 'Deine nächste Periode wird ${_periodDue == 0 ? 'ungefähr heute' : 'in etwa $_periodDue Tagen'} erwartet. Die Schätzung kann abweichen.'
+                                    : 'Ein Moment für dich? Du kannst deinen Tag jetzt eintragen.',
                                 style: HomeDesign.text(14),
                               ),
                             ),
@@ -209,9 +289,11 @@ class _LogFlow extends StatefulWidget {
     required this.initialDate,
     required this.active,
     required this.onSelectTab,
+    this.profile,
   });
   final DayJournal journal;
   final CalendarDate initialDate;
+  final UserProfile? profile;
   final int active;
   final ValueChanged<int> onSelectTab;
   @override
@@ -237,6 +319,7 @@ class _LogFlowState extends State<_LogFlow> {
       ? DayEntryPage(
           key: ValueKey(_date.iso),
           date: _date,
+          profile: widget.profile,
           journal: widget.journal,
           active: widget.active,
           onSelectTab: _tab,

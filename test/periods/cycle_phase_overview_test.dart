@@ -49,13 +49,13 @@ void main() {
       PhaseUnknownReason.noPeriod,
     );
     expect(
-      phase('2026-10-01', periods: history.skip(1).toList()).unknownReason,
+      phase('2026-10-01', periods: history.skip(2).toList()).unknownReason,
       PhaseUnknownReason.insufficientHistory,
     );
   });
 
-  test('phase transitions use the personal median and broad bounds', () {
-    // Median 28 days -> next start 24 October, broad range 8–14 October.
+  test('phase transitions use the personal mean and broad bounds', () {
+    // Mean 28 days -> next start 24 October, broad range 8–14 October.
     expect(phase('2026-10-01').phase, CyclePhase.follicular);
     expect(phase('2026-10-07').phase, CyclePhase.follicular);
     expect(phase('2026-10-08').phase, CyclePhase.aroundOvulation);

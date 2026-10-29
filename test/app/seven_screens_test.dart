@@ -9,6 +9,7 @@ import 'package:kuyena_tracker/journal/domain/day_entry.dart';
 import 'package:kuyena_tracker/periods/application/period_diary.dart';
 import 'package:kuyena_tracker/periods/data/local_period_repository.dart';
 import 'package:kuyena_tracker/periods/domain/calendar_date.dart';
+import 'package:kuyena_tracker/periods/domain/period.dart';
 import '../support/memory_period_storage.dart';
 
 final today = CalendarDate(2026, 10, 19);
@@ -244,10 +245,11 @@ void main() {
       expect(find.text('Available after your first entry.'), findsOneWidget);
       await tapText(t, 'Privacy information');
       expect(
-        find.textContaining('does not send your entries to a server'),
+        find.textContaining('nicht an einen Kuyena-Server'),
         findsOneWidget,
       );
-      await tapText(t, 'Close');
+      await t.tap(find.byType(BackButton));
+      await t.pumpAndSettle();
       await tapText(t, 'About the app');
       expect(find.text('About Kuyena'), findsOneWidget);
       await tapText(t, 'Close');
@@ -255,7 +257,7 @@ void main() {
       await tapText(t, 'Close');
       expect((await LocalJournalRepository(days).load()).reminders, isTrue);
       await go(t, 'Home');
-      expect(find.textContaining('A moment for you?'), findsOneWidget);
+      expect(find.textContaining('Ein Moment für dich?'), findsOneWidget);
       await openForm(t);
       await tapKey(t, 'mood-okay');
       await tapKey(t, 'save-day-entry');
@@ -401,6 +403,151 @@ void main() {
         (await LocalJournalRepository(days).load()).entries.single.symptoms,
         {Symptom.fatigue},
       );
+    },
+  );
+
+  testWidgets(
+    'Changing a new start to a forgotten past period asks for an end before the newer period',
+    (t) async {
+      final periods = MemoryPeriodStorage(), days = MemoryPeriodStorage();
+      await LocalPeriodRepository(periods).save([
+        Period(id: 'recent', start: today.addDays(-2), end: today.addDays(-2)),
+      ]);
+      final before = periods.value;
+      await openApp(t, periods: periods, days: days);
+      await tapKey(t, 'home-period-action');
+      await tapKey(t, 'quick-period-date');
+      await t.tap(
+        find
+            .descendant(
+              of: find.byType(DatePickerDialog),
+              matching: find.text('1'),
+            )
+            .last,
+      );
+      await t.pumpAndSettle();
+      await t.tap(
+        find.text(
+          MaterialLocalizations.of(
+            t.element(find.byType(DatePickerDialog)),
+          ).okButtonLabel,
+        ),
+      );
+      await t.pumpAndSettle();
+      expect(find.text('Letzter Blutungstag (erforderlich)'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Am 17.10.2026 beginnt bereits eine weitere Periode',
+        ),
+        findsOneWidget,
+      );
+      await tapKey(t, 'save-quick-period');
+      expect(
+        find.textContaining('Bitte wähle auch den letzten Blutungstag'),
+        findsOneWidget,
+      );
+      expect(periods.value, before);
+      await tapKey(t, 'quick-period-end-date');
+      expect(
+        t.widget<DatePickerDialog>(find.byType(DatePickerDialog)).lastDate,
+        DateTime(2026, 10, 16),
+      );
+      await t.tap(
+        find
+            .descendant(
+              of: find.byType(DatePickerDialog),
+              matching: find.text('5'),
+            )
+            .last,
+      );
+      await t.pumpAndSettle();
+      await t.tap(
+        find.text(
+          MaterialLocalizations.of(
+            t.element(find.byType(DatePickerDialog)),
+          ).okButtonLabel,
+        ),
+      );
+      await t.pumpAndSettle();
+      await tapKey(t, 'save-quick-period');
+      final data = await LocalPeriodRepository(periods).load();
+      expect(data.length, 2);
+      expect(data.singleWhere((p) => p.id == 'recent').end, today.addDays(-2));
+      final old = data.singleWhere((p) => p.id != 'recent');
+      expect(old.start, CalendarDate(2026, 10, 1));
+      expect(old.end, CalendarDate(2026, 10, 5));
+      expect(old.isOngoing, isFalse);
+      expect(days.value, isNull);
+    },
+  );
+
+  testWidgets(
+    'A forgotten period can be added before a currently ongoing one from Calendar',
+    (t) async {
+      final periods = MemoryPeriodStorage();
+      await LocalPeriodRepository(
+        periods,
+      ).save([Period(id: 'recent', start: today.addDays(-2), isOngoing: true)]);
+      await openApp(t, periods: periods);
+      await go(t, 'Calendar');
+      await tapKey(t, 'calendar-2026-10-01');
+      await tapKey(t, 'calendar-period-action');
+      expect(find.text('Periode nachtragen'), findsOneWidget);
+      expect(find.text('Letzter Blutungstag (erforderlich)'), findsOneWidget);
+      await tapKey(t, 'quick-period-end-date');
+      await t.tap(
+        find
+            .descendant(
+              of: find.byType(DatePickerDialog),
+              matching: find.text('5'),
+            )
+            .last,
+      );
+      await t.pumpAndSettle();
+      await t.tap(
+        find.text(
+          MaterialLocalizations.of(
+            t.element(find.byType(DatePickerDialog)),
+          ).okButtonLabel,
+        ),
+      );
+      await t.pumpAndSettle();
+      await tapKey(t, 'save-quick-period');
+      expect(find.text('Period recorded'), findsOneWidget);
+      await go(t, 'Home');
+      expect(find.text('Tag 3'), findsOneWidget);
+      expect(
+        (await LocalPeriodRepository(
+          periods,
+        ).load()).singleWhere((p) => p.id == 'recent').isOngoing,
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets(
+    'Past symptoms save independently without changing a recent period',
+    (t) async {
+      final periods = MemoryPeriodStorage(), days = MemoryPeriodStorage();
+      await LocalPeriodRepository(
+        periods,
+      ).save([Period(id: 'recent', start: today.addDays(-2), isOngoing: true)]);
+      final before = periods.value;
+      await openApp(t, periods: periods, days: days);
+      await go(t, 'Calendar');
+      await tapKey(t, 'calendar-2026-10-01');
+      await tapText(t, 'Log this day');
+      await tapText(t, 'Continue');
+      await tapKey(t, 'symptom-cramps');
+      await tapKey(t, 'save-day-entry');
+      final entry = (await LocalJournalRepository(days).load()).entries.single;
+      expect(entry.date, CalendarDate(2026, 10, 1));
+      expect(entry.symptoms, {Symptom.cramps});
+      expect(periods.value, before);
+      await tapKey(t, 'calendar-2026-10-01');
+      expect(find.textContaining('Symptoms: Cramps'), findsOneWidget);
+      await go(t, 'Home');
+      expect(find.text('Tag 3'), findsOneWidget);
     },
   );
 

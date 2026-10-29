@@ -1,5 +1,7 @@
 # Erster Meilenstein: Periodenbeginn dokumentieren
 
+Aktueller Speicherstand vom 29.10.2026: [Gemeinsame lokale Datenbasis, Sicherung und Wiederherstellung](lokale-datenbasis.md). Die folgenden Abschnitte dokumentieren den jeweiligen früheren Meilenstein.
+
 Stand: 18.10.2026. Zielplattformen: Android, iPhone und Browser.
 Dieses Dokument begleitet die erste Implementierung; weiterführende Funktionen
 aus der Produktidee bleiben zunächst außerhalb dieses Meilensteins.

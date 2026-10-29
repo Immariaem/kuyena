@@ -7,7 +7,8 @@ final class Period {
     required this.start,
     this.end,
     this.isOngoing = false,
-  }) {
+    Set<CalendarDate> excludedDays = const {},
+  }) : excludedDays = Set.unmodifiable(excludedDays) {
     if (id.trim().isEmpty) {
       throw ArgumentError('Eine Periode benötigt eine Kennung.');
     }
@@ -30,6 +31,24 @@ final class Period {
 
   /// Explicitly reported by the person; never inferred from a missing end.
   final bool isOngoing;
+
+  /// Computed from calendar corrections, stored separately in the journal.
+  final Set<CalendarDate> excludedDays;
+  bool includes(CalendarDate date, {required CalendarDate asOf}) =>
+      !excludedDays.contains(date) &&
+      start.compareTo(date) <= 0 &&
+      (end != null
+          ? date.compareTo(end!) <= 0
+          : isOngoing
+          ? date.compareTo(asOf) <= 0
+          : date == start);
+  int? get documentedDayCount => end == null
+      ? null
+      : start.daysUntil(end!) +
+            1 -
+            excludedDays
+                .where((d) => d.compareTo(start) >= 0 && d.compareTo(end!) <= 0)
+                .length;
 
   /// Gibt eine geprüfte Korrektur mit derselben Kennung zurück.
   /// Beide Datumsangaben sind ausdrücklich nötig; null entfernt das Ende.

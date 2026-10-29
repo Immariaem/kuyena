@@ -34,10 +34,12 @@ class KuyenaHomePage extends StatefulWidget {
     this.onLog,
     this.onForYou,
     this.onCycle,
+    this.initialCycleLength,
   });
 
   final ValueChanged<CalendarDate> onCalendar;
   final VoidCallback? onForYou, onCycle;
+  final int? initialCycleLength;
   final ValueChanged<CalendarDate>? onLog;
 
   final PeriodDiary diary;
@@ -80,7 +82,8 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
   void didUpdateWidget(covariant KuyenaHomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.diary != widget.diary ||
-        oldWidget.journal != widget.journal) {
+        oldWidget.journal != widget.journal ||
+        oldWidget.initialCycleLength != widget.initialCycleLength) {
       _refreshDay();
       _loadPeriods();
       _scheduleDayChange();
@@ -132,6 +135,7 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
       final timeline = PeriodTimeline.from(
         periods: values[0] as List<Period>,
         entries: journal.entries,
+        periodDays: journal.periodDays,
         asOf: _today,
       );
       if (mounted && request == _loadRequest) {
@@ -192,14 +196,34 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
   }
 
   DayEntry? get _dayEntry => _journalData.entryFor(_selectedDate);
+  bool? get _periodCorrection => _selectedDate.compareTo(_today) > 0
+      ? null
+      : _journalData.periodDays[_selectedDate];
   PeriodDayOverview get _overview => PeriodDayOverview.fromPeriods(
     _periods,
     _selectedDate,
     asOf: _today,
-    bleedingAbsent: _dayEntry?.flow == FlowIntensity.none,
+    initialCycleLength: widget.initialCycleLength,
+    bleedingAbsent:
+        _periodCorrection == false ||
+        (_periodCorrection == null && _dayEntry?.flow == FlowIntensity.none),
     bleedingPresent:
-        _dayEntry?.flow != null && _dayEntry?.flow != FlowIntensity.none,
+        _periodCorrection == true ||
+        (_periodCorrection == null &&
+            _dayEntry?.flow != null &&
+            _dayEntry?.flow != FlowIntensity.none),
   );
+
+  String? get _daySummary {
+    final entry = _dayEntry;
+    if (entry == null) return null;
+    final summary = dayEntrySummary(
+      entry,
+      compact: true,
+      includeFlow: _periodCorrection == null,
+    );
+    return summary.isEmpty ? null : summary;
+  }
 
   CyclePhaseOverview get _phase => CyclePhaseOverview.fromDay(_overview);
 
@@ -287,15 +311,17 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
     overview: _overview,
     isToday: _selectedDate == _today,
     loading: _loadingPeriods,
-    logSummary: _dayEntry == null
-        ? null
-        : dayEntrySummary(_dayEntry!, compact: true),
-    bleedingAbsent: _dayEntry?.flow == FlowIntensity.none,
+    logSummary: _daySummary,
+    bleedingAbsent:
+        _periodCorrection == false ||
+        (_periodCorrection == null && _dayEntry?.flow == FlowIntensity.none),
     loadFailed: _periodLoadFailed,
     onTap: () {
       if (_periodLoadFailed) {
         _loadPeriods();
-      } else if (_overview.kind == PeriodDayKind.noEntry && _dayEntry == null) {
+      } else if (_overview.kind == PeriodDayKind.noEntry &&
+          _dayEntry == null &&
+          _periodCorrection == null) {
         _openDiary(log: true);
       } else {
         _showPeriodDetails();
@@ -311,9 +337,11 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
       await showDesignInfo(
         context,
         'Dein Tageseintrag',
-        entry == null
+        _periodCorrection == false
+            ? 'Am ${_selectedDate.display} ist kein Periodentag markiert.${entry?.hasWellbeing == true ? '\n${dayEntrySummary(entry!, includeFlow: false)}' : ''}'
+            : entry == null
             ? 'Für diesen Tag liegt kein Eintrag vor.'
-            : dayEntrySummary(entry),
+            : dayEntrySummary(entry, includeFlow: _periodCorrection == null),
       );
       return;
     }
@@ -332,10 +360,11 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Deine dokumentierten Angaben', style: HomeDesign.text(24)),
-            if (entry != null) ...[
+            if (entry != null &&
+                (_periodCorrection == null || entry.hasWellbeing)) ...[
               const SizedBox(height: 12),
               Text(
-                'Log am ${entry.date.display}: ${dayEntrySummary(entry)}',
+                'Log am ${entry.date.display}: ${dayEntrySummary(entry, includeFlow: _periodCorrection == null)}',
                 style: HomeDesign.text(
                   14,
                   weight: FontWeight.w600,
@@ -372,7 +401,7 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
                             ? (fromLog || adjustedFromLog ? 'Die zuletzt eingetragene Blutung führt die Periode fort; mit None beendest du sie.' : 'Du hast diese Periode ausdrücklich als noch laufend markiert; der Bogen ist deshalb rot.')
                             : period.end == null
                             ? 'Ein unbekanntes Ende bestätigt nicht, dass die Blutung noch läuft. Du kannst „Periode läuft noch“ beim Bearbeiten aktivieren.'
-                            : 'Innerhalb des dokumentierten Periodenzeitraums ist der Bogen rot, danach hellrosa.'}',
+                            : 'An markierten Blutungstagen ist der Bogen rot, außerhalb hellrosa. Entfernte Kalendertage sind keine Blutungstage.'}',
               style: HomeDesign.text(
                 16,
                 color: HomeDesign.ink,
@@ -383,11 +412,11 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
             const SizedBox(height: 12),
             Text(
               overview.estimate == null
-                  ? 'Für den Countdown brauchen wir mindestens drei Periodenbeginne, also zwei Abstände. '
+                  ? 'Für den Countdown brauchen wir einen Periodenbeginn und deine genaue übliche Zykluslänge oder mindestens einen dokumentierten Startabstand. '
                         'Bei widersprüchlichen Zeiträumen wird ebenfalls keine Schätzung angezeigt. '
                         'Es wird keine feste Zykluslänge unterstellt.'
                   : 'Geschätzte Zykluslänge: ${overview.estimate!.lengthInDays} Tage. '
-                        'Das ist der Median aus den letzten ${overview.estimate!.cycleCount} Start-zu-Start-Abständen. '
+                        '${overview.estimate!.isInitial ? 'Das ist dein selbst angegebener Richtwert. ' : 'Das ist der gerundete Mittelwert aus ${overview.estimate!.cycleCount} dokumentierten Start-zu-Start-Abständen. '}'
                         'Diese lagen zwischen ${overview.estimate!.shortestInterval} und ${overview.estimate!.longestInterval} Tagen.\n\n'
                         'Geschätzter nächster Beginn: ${overview.estimate!.expectedStart.display}. '
                         'Letzter Beginn + geschätzte Zykluslänge − ausgewählter Tag ergibt den Countdown. '

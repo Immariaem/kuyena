@@ -1,3 +1,4 @@
+import '../../data/storage/data_lock.dart';
 import 'dart:math';
 
 import '../domain/calendar_date.dart';
@@ -15,25 +16,19 @@ final class PeriodDiary {
     required this.repository,
     DateTime Function()? clock,
     String Function()? idGenerator,
-  }) : clock = clock ?? DateTime.now,
+    DataLock? dataLock,
+  }) : dataLock = dataLock ?? DataLock(),
+       clock = clock ?? DateTime.now,
        _idGenerator = idGenerator ?? _newId;
 
   final PeriodRepository repository;
   final DateTime Function() clock;
   final String Function() _idGenerator;
-  Future<void> _pending = Future<void>.value();
-
+  final DataLock dataLock;
   CalendarDate get today => CalendarDate.fromDateTime(clock());
-
-  // Serialize read/modify/write operations in this app instance.
-  Future<T> _run<T>(Future<T> Function() operation) {
-    final result = _pending.then((_) => operation());
-    _pending = result.then<void>(
-      (_) {},
-      onError: (Object error, StackTrace stack) {},
-    );
-    return result;
-  }
+  Future<T> synchronized<T>(Future<T> Function() operation) =>
+      dataLock.run(operation);
+  Future<T> _run<T>(Future<T> Function() operation) => synchronized(operation);
 
   static String _newId() {
     final random = Random.secure();
@@ -102,6 +97,7 @@ final class PeriodDiary {
     CalendarDate start, {
     required CalendarDate? end,
     bool? isOngoing,
+    Period? expected,
   }) => _run(() async {
     _validate(start, end);
     final periods = await repository.load();
@@ -114,6 +110,11 @@ final class PeriodDiary {
     if (periods.any((period) => period.id != id && period.start == start)) {
       throw const PeriodRuleException(
         'Für diesen Tag besteht bereits ein Eintrag.',
+      );
+    }
+    if (expected != null && !_same(periods[index], expected)) {
+      throw const PeriodRuleException(
+        'Dieser Periodeneintrag wurde inzwischen geändert. Bitte lade den Verlauf neu.',
       );
     }
     final Period corrected;
@@ -133,11 +134,17 @@ final class PeriodDiary {
     return updated;
   });
 
-  Future<List<Period>> remove(String id) => _run(() async {
+  Future<List<Period>> remove(String id, {Period? expected}) => _run(() async {
     final periods = await repository.load();
     if (!periods.any((period) => period.id == id)) {
       throw const PeriodRuleException(
         'Dieser Eintrag ist nicht mehr vorhanden. Bitte lade den Verlauf neu.',
+      );
+    }
+    if (expected != null &&
+        !_same(periods.firstWhere((p) => p.id == id), expected)) {
+      throw const PeriodRuleException(
+        'Dieser Periodeneintrag wurde inzwischen geändert. Bitte lade den Verlauf neu.',
       );
     }
     final updated = _sorted(periods.where((period) => period.id != id));
@@ -148,6 +155,12 @@ final class PeriodDiary {
     }
     return updated;
   });
+
+  bool _same(Period a, Period b) =>
+      a.id == b.id &&
+      a.start == b.start &&
+      a.end == b.end &&
+      a.isOngoing == b.isOngoing;
 
   Future<List<Period>> clear() => _run(() async {
     await repository.clear();

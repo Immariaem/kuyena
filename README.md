@@ -7,7 +7,9 @@ Kuyena dokumentiert Perioden mit Beginn und optionalem Ende sowie Symptome, Stim
 
 - Auf Home unter dem Kreis „Periode starten“ wählen und den Beginn bestätigen. Mit „Periode beenden“ den letzten Blutungstag speichern.
 - Mit + / Log unabhängig davon Symptome, Stimmung, Energie oder eine Notiz für einen Tag speichern.
-- Tageseinträge im Kalender wieder öffnen und bearbeiten.
+- Vergessene Perioden und Symptome über einen vergangenen Kalendertag nachtragen. Liegt danach schon eine weitere Periode, wird für den Periodennachtrag auch das Ende abgefragt.
+- Im Kalender über „Periodentage bearbeiten“ einzelne Tage antippen oder durch Ziehen einen Bereich markieren bzw. entfernen; auf dem Touchscreen dafür kurz gedrückt halten. Erst „Speichern“ übernimmt die Auswahl. Zusammenhängende Tage erscheinen als rotes Band.
+- Tageseinträge im Kalender wieder öffnen und bearbeiten; Symptome bleiben beim Entfernen eines Periodentags erhalten.
 - Unter Cycle → Edit cycle data Periodenbeginn und optionales Ende erfassen und korrigieren.
 - Ein Ende später ergänzen oder wieder als unbekannt angeben.
 - „Periode läuft noch“ ausdrücklich markieren und mit einem Enddatum beenden.
@@ -15,6 +17,7 @@ Kuyena dokumentiert Perioden mit Beginn und optionalem Ende sowie Symptome, Stim
 - Die Phase für den ausgewählten Tag anzeigen: Menstruation aus Einträgen, weitere Phasen bei ausreichenden Angaben als vorläufige Schätzung. Die Symptomkarte zeigt die tatsächlich eingetragenen Symptome dieses Tages.
 - Einzelne oder alle Einträge nach Bestätigung löschen.
 - Einträge beim erneuten Öffnen aus dem lokalen Speicher laden.
+- Unter Cycle → Sicherung & Wiederherstellung eine passwortgeschützte Datei speichern und nach einer Vorschau wiederherstellen; frühere JSON-Exporte bleiben importierbar.
 - Keine Konten, keine Synchronisation und kein Backend für Gesundheitsdaten.
 
 Der Plusknopf öffnet ausschließlich die Datumsauswahl für Symptome und Wohlbefinden. Die schnelle Periodeneingabe ist davon getrennt. Nach „Periode starten“ bleibt die Periode aktiv, bis ein Ende erfasst wird; das Enddatum zählt noch als Blutungstag. Abbrechen speichert nichts. Beim Bearbeiten oder Löschen von Wohlbefinden bleiben Perioden und bisherige Blutungsangaben erhalten.
@@ -29,9 +32,9 @@ Ein unbekanntes Ende wird nicht automatisch als laufende Periode interpretiert.
 Die ausdrückliche Markierung „Periode läuft noch“ macht den Bogen rot,
 sonst ist er hellrosa. Er baut sich von oben im Uhrzeigersinn auf.
 Das Datumsrad zeigt den Wert für den ausgewählten Tag, „Heute“ führt zurück.
-Mit mindestens drei Periodenbeginnen zeigt der Kreis außerhalb einer
-bestätigten Periode den ungefähren Countdown aus dem Median der letzten
-bis zu sechs Startabstände. Antippen erklärt die Rechnung. Zu wenige
+Mit mindestens einem Startabstand zeigt der Kreis außerhalb einer
+bestätigten Periode den ungefähren Countdown aus dem Mittelwert der dokumentierten
+Startabstände. Zuvor kann eine genau angegebene übliche Zykluslänge als Richtwert dienen. Antippen erklärt die Rechnung. Zu wenige
 Angaben ergeben keine erfundene Standardlänge; ein vergangener geschätzter
 Termin wird als solcher angezeigt.
 
@@ -71,19 +74,17 @@ flutter build web --no-web-resources-cdn
 Die App speichert ein versioniertes Dokument mit Kennungen und Kalenderdaten, keine Namen
 oder Kontaktdaten. Auf iOS ist der Zugriff auf das entsperrte Gerät beschränkt;
 Keychain-Synchronisation ist nicht aktiviert. Android-Autobackup ist für die App
-deaktiviert. Die Löschfunktion entfernt ausschließlich Kuyenas Periodendokument.
+deaktiviert. „Delete all local data“ entfernt Kuyenas Perioden und das Tagesjournal einschließlich Kalenderkorrekturen.
 
 Die Web-Implementierung des Plugins ist upstream **experimentell**. Sie benötigt
 HTTPS oder localhost. Browser-Schlüssel liegen ebenfalls im Browserprofil;
 dies ist keine Passwortsperre und kein Schutz vor Schadcode derselben Origin
 oder Personen mit Zugriff auf das Browserprofil. Die Browserfassung verwendet
 deshalb vorerst **Testdaten**. Das Löschen von Website-Daten, ein privates
-Browserfenster und Speicherbereinigung können Daten entfernen. Es gibt noch
-keinen Export oder Wiederherstellungsweg. Auf Mobilgeräten sind reale
+Browserfenster und Speicherbereinigung können Daten entfernen. Unter Cycle stehen der lesbare JSON-Export sowie passwortgeschützte Sicherungsdateien und eine geprüfte Wiederherstellung bereit. Auf Mobilgeräten sind reale
 Gerätetests vor einer Nutzung mit Gesundheitsdaten ebenfalls erforderlich.
 
-Vorgänge werden innerhalb einer App-Instanz nacheinander ausgeführt.
-Mehrere gleichzeitig bearbeitende Browser-Tabs werden noch nicht koordiniert.
+Vorgänge teilen sich einen gemeinsamen Datenzugriff. Aktuelle Browser koordinieren ihn über Web Locks zwischen Tabs derselben Origin. Nach einem Update alle alten Tabs neu laden; frühere App-Versionen verwenden noch die alten Schlüssel. Gleichzeitige Bearbeitungen desselben Tageseintrags oder einer Periode werden vor dem Überschreiben geprüft.
 Für eine größere Symptomdatenbank ist die Speicherung neu zu bewerten.
 
 Bereits gespeicherte Periodenbeginne aus Dokumentversion 1 werden mit
@@ -91,10 +92,11 @@ unverändertem Datum und unbekanntem Ende gelesen. Beim nächsten bestätigten
 Speichern werden sie zusammen mit den Änderungen in Version 3 übernommen.
 Version-2-Perioden ohne Aktiv-Markierung bleiben ebenfalls lesbar;
 ihre unbekannten Enden bleiben unbekannt.
-Der bisherige Speicherschlüssel bleibt erhalten. Ein bloßes Öffnen schreibt
-die Daten nicht um; beschädigte oder unbekannte Formate werden gemeldet.
+Die produktive App führt beide Datenbereiche unter `kuyena.local_data.v1` zusammen. Vorhandene alte Schlüssel werden beim ersten erfolgreichen Laden validiert, in den gemeinsamen Speicher kopiert, durch Rücklesen geprüft und erst danach entfernt. Beschädigte oder unbekannte Formate werden gemeldet und erhalten. Einzelheiten stehen in [Lokale Datenbasis und Sicherung](docs/lokale-datenbasis.md).
 
 ## Kursdokumentation
+
+[Lokale Datenbasis, Sicherung und Wiederherstellung](docs/lokale-datenbasis.md)
 
 [Getrennte Eingaben und schnelle Periodenaktionen](docs/getrennte-eingaben.md)
 
@@ -114,3 +116,17 @@ die Daten nicht um; beschädigte oder unbekannte Formate werden gemeldet.
 ## Weitere Figma-Seiten
 
 Kalender, Ansichtsmenü, Tageseintrag, Datumsauswahl, Empfehlungen, Cycle & App und Startbildschirm sind umgesetzt. Die Navigation und lokalen Funktionen sind in [docs/figma-seiten.md](docs/figma-seiten.md) erklärt. Mit **+ / Log** wird ein Tageseintrag erfasst; Periodenbeginn und -ende verwaltest du unter **Cycle → Edit cycle data**.
+
+
+### Einrichtung und persönliche Angaben
+
+Beim ersten Öffnen führt Kuyena durch Begrüßung, lokale Speicherung und sieben
+freiwillige Einrichtungsschritte. „Weiß ich nicht“ und Überspringen sind möglich.
+Die Auswahl bleibt lokal, gehört zur Datensicherung und lässt sich unter
+**Cycle & App → Deine Angaben & Einstellungen** ändern. Der gemeldete letzte
+Periodenbeginn wird ohne erfundenes Enddatum übernommen. Im Log erscheinen
+bevorzugte Symptome zuerst; alle weiteren bleiben erreichbar.
+
+Erinnerungen erscheinen zur gewählten Uhrzeit innerhalb der geöffneten App.
+Benachrichtigungen im Hintergrund sowie individuell geprüfte Rezept- und
+Trainingsvorschläge sind noch nicht angebunden. Details: [Onboarding](docs/onboarding.md).

@@ -20,6 +20,7 @@ final class PeriodDayOverview {
     Iterable<Period> periods,
     CalendarDate date, {
     CalendarDate? asOf,
+    int? initialCycleLength,
     bool bleedingAbsent = false,
     bool bleedingPresent = false,
   }) {
@@ -40,14 +41,14 @@ final class PeriodDayOverview {
     // Conflicting documented ranges are shown for review, not silently resolved.
     if (earlier
         .skip(1)
-        .any((p) => p.end != null && p.end!.compareTo(date) >= 0)) {
+        .any((p) => p.end != null && p.includes(date, asOf: observationDay))) {
       return PeriodDayOverview._(date, latest, PeriodDayKind.overlapping, null);
     }
     final end = latest.end;
     return PeriodDayOverview._(
       date,
       latest,
-      bleedingAbsent
+      (bleedingAbsent || latest.excludedDays.contains(date))
           ? PeriodDayKind.afterPeriod
           : (latest.isOngoing || (bleedingPresent && end == null)) &&
                 date.compareTo(observationDay) <= 0
@@ -57,7 +58,7 @@ final class PeriodDayOverview {
           : date.compareTo(end) <= 0
           ? PeriodDayKind.documentedPeriod
           : PeriodDayKind.afterPeriod,
-      CycleEstimate.fromPeriods(earlier),
+      CycleEstimate.fromPeriods(earlier, initialLength: initialCycleLength),
     );
   }
 

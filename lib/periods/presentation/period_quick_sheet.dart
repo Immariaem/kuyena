@@ -43,6 +43,11 @@ class _PeriodQuickSheet extends StatefulWidget {
 class _PeriodQuickSheetState extends State<_PeriodQuickSheet> {
   late CalendarDate _date;
   Period? _target;
+  CalendarDate? _end, _nextStart;
+  bool _checkingDate = false, _boundsFailed = false;
+  bool get _endRequired => _target == null && _nextStart != null;
+  CalendarDate get _latestEnd =>
+      _nextStart?.addDays(-1) ?? widget.actions.diary.today;
   bool _loading = true, _failed = false, _saving = false, _review = false;
   String? _error;
   @override
@@ -59,10 +64,18 @@ class _PeriodQuickSheetState extends State<_PeriodQuickSheet> {
       _error = null;
     });
     try {
-      final day = await widget.actions.overview(_date);
+      final prepared = await widget.actions.prepare(_date);
+      final day = prepared.day;
       if (!mounted) return;
       setState(() {
-        _target = day.period?.end == null ? day.period : null;
+        _nextStart = prepared.nextStart;
+        final earlierUnknown =
+            prepared.nextStart != null &&
+            day.kind == PeriodDayKind.unknownEnd &&
+            day.period?.start != _date;
+        _target = day.period?.end == null && !earlierUnknown
+            ? day.period
+            : null;
         _review =
             day.kind == PeriodDayKind.overlapping ||
             day.isPeriod && day.period?.end != null;
@@ -79,7 +92,8 @@ class _PeriodQuickSheetState extends State<_PeriodQuickSheet> {
       context: context,
       initialDate: _date.value,
       firstDate: _target?.start.value ?? DateTime(1),
-      lastDate: widget.actions.diary.today.value,
+      lastDate:
+          (_target == null ? widget.actions.diary.today : _latestEnd).value,
       helpText: _target == null ? 'Periodenbeginn' : 'Letzter Blutungstag',
     );
     if (date != null && mounted) {
@@ -87,11 +101,64 @@ class _PeriodQuickSheetState extends State<_PeriodQuickSheet> {
         _date = CalendarDate.fromDateTime(date);
         _error = null;
       });
+      if (_target == null) await _refreshBounds();
+    }
+  }
+
+  Future<void> _refreshBounds({bool keepError = false}) async {
+    setState(() {
+      _checkingDate = true;
+      _boundsFailed = false;
+      if (!keepError) _error = null;
+    });
+    try {
+      final prepared = await widget.actions.prepare(_date);
+      if (!mounted) return;
+      setState(() {
+        _nextStart = prepared.nextStart;
+        if (_end != null &&
+            (_end!.compareTo(_date) < 0 || _end!.compareTo(_latestEnd) > 0)) {
+          _end = null;
+        }
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _boundsFailed = true;
+          _error =
+              'Die Angaben für dieses Datum konnten nicht geprüft werden. Bitte versuche es erneut.';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _checkingDate = false);
+    }
+  }
+
+  Future<void> _pickEnd() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: (_end ?? _date).value,
+      firstDate: _date.value,
+      lastDate: _latestEnd.value,
+      helpText: 'Letzter Blutungstag',
+    );
+    if (date != null && mounted) {
+      setState(() {
+        _end = CalendarDate.fromDateTime(date);
+        _error = null;
+      });
     }
   }
 
   Future<void> _save() async {
-    if (_saving) return;
+    if (_saving || _checkingDate || _boundsFailed) return;
+    if (_endRequired && _end == null) {
+      setState(
+        () => _error =
+            'Bitte wähle auch den letzten Blutungstag der nachgetragenen Periode.',
+      );
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -99,13 +166,16 @@ class _PeriodQuickSheetState extends State<_PeriodQuickSheet> {
     try {
       final target = _target;
       if (target == null) {
-        await widget.actions.start(_date);
+        await widget.actions.start(_date, end: _end);
       } else {
         await widget.actions.finish(target, _date);
       }
       if (mounted) Navigator.pop(context, PeriodQuickResult.saved);
     } on PeriodRuleException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) {
+        setState(() => _error = error.message);
+        if (_target == null) await _refreshBounds(keepError: true);
+      }
     } catch (_) {
       if (mounted) {
         setState(
@@ -135,7 +205,9 @@ class _PeriodQuickSheetState extends State<_PeriodQuickSheet> {
               _review
                   ? 'Deine Periode'
                   : _target == null
-                  ? 'Periode starten'
+                  ? _date.compareTo(widget.actions.diary.today) < 0
+                        ? 'Periode nachtragen'
+                        : 'Periode starten'
                   : 'Periode beenden',
               style: HomeDesign.text(26),
             ),
@@ -173,7 +245,7 @@ class _PeriodQuickSheetState extends State<_PeriodQuickSheet> {
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 key: const ValueKey('quick-period-date'),
-                onPressed: _saving ? null : _pickDate,
+                onPressed: _saving || _checkingDate ? null : _pickDate,
                 icon: const Icon(Icons.calendar_today_outlined, size: 20),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: HomeDesign.red,
@@ -189,11 +261,59 @@ class _PeriodQuickSheetState extends State<_PeriodQuickSheet> {
                   style: HomeDesign.text(16),
                 ),
               ),
+              if (_target == null &&
+                  _date.compareTo(widget.actions.diary.today) < 0) ...[
+                const SizedBox(height: 16),
+                Text(
+                  _endRequired
+                      ? 'Letzter Blutungstag (erforderlich)'
+                      : 'Letzter Blutungstag (optional)',
+                  style: HomeDesign.text(15),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  key: const ValueKey('quick-period-end-date'),
+                  onPressed: _saving || _checkingDate || _boundsFailed
+                      ? null
+                      : _pickEnd,
+                  icon: const Icon(Icons.calendar_today_outlined, size: 20),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: HomeDesign.red,
+                    backgroundColor: HomeDesign.palePink,
+                    side: BorderSide.none,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: const StadiumBorder(),
+                  ),
+                  label: Text(
+                    _end?.display ?? 'Ende wählen',
+                    style: HomeDesign.text(16),
+                  ),
+                ),
+                if (_end != null && !_endRequired)
+                  TextButton(
+                    onPressed: _saving
+                        ? null
+                        : () => setState(() => _end = null),
+                    child: Text(
+                      'Ende offen lassen',
+                      style: HomeDesign.text(13),
+                    ),
+                  ),
+              ],
+              if (_checkingDate)
+                const Padding(
+                  padding: EdgeInsets.only(top: 12),
+                  child: LinearProgressIndicator(),
+                ),
               const SizedBox(height: 12),
               Text(
-                _target == null
-                    ? 'Der Beginn zählt als Tag 1. Die Periode bleibt aktiv, bis du sie beendest.'
-                    : 'Dieser Tag zählt noch zur Periode. Ab dem folgenden Tag gilt sie als beendet.',
+                _target != null
+                    ? 'Dieser Tag zählt noch zur Periode. Ab dem folgenden Tag gilt sie als beendet.'
+                    : _endRequired
+                    ? 'Am ${_nextStart!.display} beginnt bereits eine weitere Periode. Bitte gib das Ende der nachgetragenen Periode davor an.'
+                    : _end != null
+                    ? 'Der Beginn zählt als Tag 1. Der letzte Blutungstag zählt noch zur Periode; danach ist sie beendet.'
+                    : 'Der Beginn zählt als Tag 1. Wenn diese Periode bereits vorbei ist, kannst du ihr Ende gleich ergänzen. Ohne Ende bleibt sie aktiv.',
                 style: HomeDesign.text(
                   13,
                   color: HomeDesign.muted,
@@ -205,11 +325,18 @@ class _PeriodQuickSheetState extends State<_PeriodQuickSheet> {
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(_error!, style: HomeDesign.text(14)),
                 ),
+              if (_boundsFailed)
+                TextButton(
+                  onPressed: _refreshBounds,
+                  child: const Text('Datum erneut prüfen'),
+                ),
               const SizedBox(height: 20),
               DesignButton(
                 key: const ValueKey('save-quick-period'),
                 label: _saving ? 'Wird gespeichert…' : 'Speichern',
-                onPressed: _saving ? null : _save,
+                onPressed: _saving || _checkingDate || _boundsFailed
+                    ? null
+                    : _save,
               ),
             ],
             const SizedBox(height: 6),

@@ -182,4 +182,132 @@ void main() {
     await first;
     expect((await diary.load()).length, 1);
   });
+  test(
+    'backfilled period requires an end before a later ongoing period and preserves it',
+    () async {
+      await actions.start(day(25));
+      final recent = (await diary.load()).single;
+      final before = periods.value;
+      expect((await actions.prepare(day(10))).nextStart, day(25));
+      await expectLater(
+        actions.start(day(10)),
+        throwsA(isA<PeriodRuleException>()),
+      );
+      expect(periods.value, before);
+      await actions.start(day(10), end: day(15));
+      final saved = await diary.load();
+      expect(saved.length, 2);
+      expect(saved.first.id, recent.id);
+      expect(saved.first.isOngoing, isTrue);
+      expect(saved.last.start, day(10));
+      expect(saved.last.end, day(15));
+      expect(saved.last.isOngoing, isFalse);
+      expect((await actions.overview(today)).dayNumber, 5);
+    },
+  );
+
+  test(
+    'a closed period can be inserted between two documented periods',
+    () async {
+      await diary.add(day(1), end: day(5));
+      await diary.add(day(25), end: day(28));
+      final originalIds = (await diary.load()).map((p) => p.id).toSet();
+      await expectLater(
+        actions.start(day(10)),
+        throwsA(isA<PeriodRuleException>()),
+      );
+      await actions.start(day(10), end: day(15));
+      final saved = await diary.load();
+      expect(saved.length, 3);
+      expect(saved.where((p) => originalIds.contains(p.id)).length, 2);
+      expect(saved[1].start, day(10));
+      expect(saved[1].end, day(15));
+      expect((await actions.overview(day(15))).isPeriod, isTrue);
+      expect((await actions.overview(day(16))).isPeriod, isFalse);
+    },
+  );
+
+  test(
+    'an end before the next start is allowed; touching or overlapping ranges are rejected',
+    () async {
+      await diary.add(day(1), end: day(5));
+      await diary.add(day(25), isOngoing: true);
+      final before = periods.value;
+      for (final span in [(4, 10), (10, 25), (10, 26)]) {
+        await expectLater(
+          actions.start(day(span.$1), end: day(span.$2)),
+          throwsA(isA<PeriodRuleException>()),
+        );
+        expect(periods.value, before);
+      }
+      await actions.start(day(6), end: day(24));
+      expect((await diary.load())[1].end, day(24));
+    },
+  );
+
+  test(
+    'a past period may be saved with an end even without a later start',
+    () async {
+      await actions.start(day(10), end: day(15));
+      final saved = (await diary.load()).single;
+      expect(saved.isOngoing, isFalse);
+      expect(saved.end, day(15));
+      expect((await actions.prepare(day(20))).nextStart, isNull);
+      expect((await actions.overview(today)).isPeriod, isFalse);
+    },
+  );
+
+  test(
+    'backfilling does not invent the end of an older unknown period',
+    () async {
+      await diary.add(day(1));
+      await diary.add(day(25), isOngoing: true);
+      await actions.start(day(10), end: day(15));
+      final saved = await diary.load();
+      expect(saved.last.start, day(1));
+      expect(saved.last.end, isNull);
+      expect(saved.last.isOngoing, isFalse);
+      expect(saved.first.isOngoing, isTrue);
+    },
+  );
+
+  test(
+    'absence inside the requested span is not silently overwritten',
+    () async {
+      await journal.setFlow(day(12), FlowIntensity.none);
+      final before = days.value;
+      await expectLater(
+        actions.start(day(10), end: day(15)),
+        throwsA(isA<PeriodRuleException>()),
+      );
+      expect(periods.value, isNull);
+      expect(days.value, before);
+    },
+  );
+
+  test(
+    'saving rechecks a later start added after the form was opened',
+    () async {
+      expect((await actions.prepare(day(10))).nextStart, isNull);
+      await diary.add(day(25), isOngoing: true);
+      final before = periods.value;
+      await expectLater(
+        actions.start(day(10)),
+        throwsA(isA<PeriodRuleException>()),
+      );
+      expect(periods.value, before);
+    },
+  );
+
+  test('invalid optional ends never write a historical period', () async {
+    await expectLater(
+      actions.start(day(10), end: day(9)),
+      throwsA(isA<PeriodRuleException>()),
+    );
+    await expectLater(
+      actions.start(day(10), end: day(30)),
+      throwsA(isA<PeriodRuleException>()),
+    );
+    expect(periods.value, isNull);
+  });
 }

@@ -5,6 +5,8 @@ import '../../home/presentation/home_design.dart';
 import '../../app/presentation/kuyena_components.dart';
 
 import '../application/period_diary.dart';
+import '../application/period_day_editor.dart';
+import '../../calendar/presentation/period_days_editor_page.dart';
 import '../application/period_timeline.dart';
 import '../domain/calendar_date.dart';
 import '../../journal/application/day_journal.dart';
@@ -32,6 +34,8 @@ class PeriodHomePage extends StatefulWidget {
 class _PeriodHomePageState extends State<PeriodHomePage> {
   List<Period> _periods = const [];
   List<Period> _logPeriods = const [];
+  List<Period> _calendarPeriods = const [];
+  Map<CalendarDate, bool> _periodDays = {};
   List<DayEntry> _flowEntries = const [];
   Map<String, Period> _computed = {};
   Set<String> _logAdjusted = {};
@@ -69,11 +73,16 @@ class _PeriodHomePageState extends State<PeriodHomePage> {
       final timeline = PeriodTimeline.from(
         periods: periods,
         entries: (values[1] as JournalData).entries,
+        periodDays: (values[1] as JournalData).periodDays,
         asOf: widget.diary.today,
       );
       if (!mounted) return;
       setState(() {
         _periods = periods;
+        _periodDays = (values[1] as JournalData).periodDays;
+        _calendarPeriods = timeline.periods
+            .where((p) => timeline.calendarPeriodIds.contains(p.id))
+            .toList();
         _flowEntries = (values[1] as JournalData).entries
             .where((e) => e.flow != null)
             .toList();
@@ -146,6 +155,7 @@ class _PeriodHomePageState extends State<PeriodHomePage> {
             : widget.diary.correct(
                 previous.id,
                 start,
+                expected: previous,
                 end: end,
                 isOngoing: isOngoing,
               ),
@@ -208,12 +218,34 @@ class _PeriodHomePageState extends State<PeriodHomePage> {
     await _perform(
       () => period == null
           ? widget.diary.clear()
-          : widget.diary.remove(period.id),
+          : widget.diary.remove(period.id, expected: period),
       period == null
           ? 'Alle Periodeneinträge gelöscht.'
           : 'Periodeneintrag gelöscht.',
     );
   }
+
+  Future<void> _editCalendar([CalendarDate? date]) async {
+    if (widget.journal == null || _busy) return;
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PeriodDaysEditorPage(
+          editor: PeriodDayEditor(
+            diary: widget.diary,
+            journal: widget.journal!,
+          ),
+          initialDate: date ?? widget.diary.today,
+        ),
+      ),
+    );
+    if (saved == true && mounted) await _load();
+  }
+
+  bool _calendarChanged(Period period) => _periodDays.keys.any(
+    (d) =>
+        d.compareTo(period.start) >= 0 &&
+        d.compareTo(period.end ?? widget.diary.today) <= 0,
+  );
 
   Future<void> _editBleeding(CalendarDate date) async {
     final journal = widget.journal;
@@ -239,7 +271,7 @@ class _PeriodHomePageState extends State<PeriodHomePage> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Periodenbeginn: ${period.start.display}',
+                'Periodenbeginn: ${(_computed[period.id] ?? period).start.display}',
                 style: HomeDesign.text(16),
               ),
             ),
@@ -270,32 +302,39 @@ class _PeriodHomePageState extends State<PeriodHomePage> {
           ),
         ],
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            TextButton.icon(
-              onPressed: _busy || _loadFailed
-                  ? null
-                  : () => _editPeriod(period),
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: HomeDesign.red,
-                shape: const StadiumBorder(),
+        if (_calendarChanged(period))
+          TextButton.icon(
+            onPressed: _busy ? null : () => _editCalendar(period.start),
+            icon: const Icon(Icons.edit_calendar_outlined),
+            label: Text('Im Kalender bearbeiten', style: HomeDesign.text(14)),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              TextButton.icon(
+                onPressed: _busy || _loadFailed
+                    ? null
+                    : () => _editPeriod(period),
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: HomeDesign.red,
+                  shape: const StadiumBorder(),
+                ),
+                icon: const DesignAsset('2acf8.svg', width: 22, height: 22),
+                label: Text('Korrigieren', style: HomeDesign.text(14)),
               ),
-              icon: const DesignAsset('2acf8.svg', width: 22, height: 22),
-              label: Text('Korrigieren', style: HomeDesign.text(14)),
-            ),
-            TextButton.icon(
-              onPressed: _busy || _loadFailed
-                  ? null
-                  : () => _confirmDelete(period),
-              style: TextButton.styleFrom(foregroundColor: HomeDesign.red),
-              icon: const DesignAsset('f680b.svg', width: 22, height: 22),
-              label: Text('Löschen', style: HomeDesign.text(14)),
-            ),
-          ],
-        ),
+              TextButton.icon(
+                onPressed: _busy || _loadFailed
+                    ? null
+                    : () => _confirmDelete(period),
+                style: TextButton.styleFrom(foregroundColor: HomeDesign.red),
+                icon: const DesignAsset('f680b.svg', width: 22, height: 22),
+                label: Text('Löschen', style: HomeDesign.text(14)),
+              ),
+            ],
+          ),
       ],
     ),
   );
@@ -425,8 +464,7 @@ class _PeriodHomePageState extends State<PeriodHomePage> {
                                 ],
                                 if (!_loading &&
                                     !_loadFailed &&
-                                    _periods.isEmpty &&
-                                    _logPeriods.isEmpty)
+                                    _computed.isEmpty)
                                   Container(
                                     padding: const EdgeInsets.all(22),
                                     decoration: BoxDecoration(
@@ -460,8 +498,57 @@ class _PeriodHomePageState extends State<PeriodHomePage> {
                                       ],
                                     ),
                                   ),
-                                for (final period in _periods)
+                                if (widget.journal != null) ...[
+                                  TextButton.icon(
+                                    onPressed: _busy || _loadFailed
+                                        ? null
+                                        : () => _editCalendar(),
+                                    icon: const Icon(
+                                      Icons.edit_calendar_outlined,
+                                    ),
+                                    label: Text(
+                                      'Periodentage im Kalender bearbeiten',
+                                      style: HomeDesign.text(14),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
+                                for (final period in _periods.where(
+                                  (p) => _computed.containsKey(p.id),
+                                ))
                                   _periodCard(period),
+                                for (final period in _calendarPeriods)
+                                  Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.all(18),
+                                    decoration: BoxDecoration(
+                                      color: HomeDesign.palePink,
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Periodenbeginn: ${period.start.display}',
+                                          style: HomeDesign.text(16),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'Periodenende: ${period.end?.display ?? 'unbekannt'}',
+                                          style: HomeDesign.text(14),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              _editCalendar(period.start),
+                                          child: Text(
+                                            'Im Kalender bearbeiten',
+                                            style: HomeDesign.text(14),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 if (_logPeriods.isNotEmpty) ...[
                                   const SizedBox(height: 16),
                                   Text(

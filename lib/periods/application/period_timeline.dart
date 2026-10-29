@@ -1,19 +1,27 @@
 import '../../journal/domain/day_entry.dart';
 import '../domain/calendar_date.dart';
 import '../domain/period.dart';
+import 'calendar_period_projection.dart';
 
 /// One computed timeline for Home, Calendar and Cycle. The two original
 /// documents are never rewritten or duplicated while reconciling observations.
 final class PeriodTimeline {
-  PeriodTimeline._(this.periods, this.logPeriodIds, this.logAdjustedIds);
+  PeriodTimeline._(
+    this.periods,
+    this.logPeriodIds,
+    this.logAdjustedIds,
+    this.calendarPeriodIds,
+  );
   final List<Period> periods;
   final Set<String> logPeriodIds;
   final Set<String> logAdjustedIds;
+  final Set<String> calendarPeriodIds;
 
   factory PeriodTimeline.from({
     required Iterable<Period> periods,
     required Iterable<DayEntry> entries,
     required CalendarDate asOf,
+    Map<CalendarDate, bool> periodDays = const {},
   }) {
     final manual = periods.where((p) => p.start.compareTo(asOf) <= 0).toList()
       ..sort((a, b) => a.start.compareTo(b.start));
@@ -93,10 +101,22 @@ final class PeriodTimeline {
       acceptManual(manual[nextManual++]);
     }
     result.sort((a, b) => b.start.compareTo(a.start));
+    final projected = periodDays.isEmpty
+        ? result
+        : projectCalendarDays(
+            periods: result,
+            changes: periodDays,
+            manualIds: manual.map((p) => p.id).toSet(),
+            asOf: asOf,
+          );
+    final ids = projected.map((p) => p.id).toSet();
     return PeriodTimeline._(
-      List.unmodifiable(result),
-      Set.unmodifiable(logIds),
-      Set.unmodifiable(adjusted),
+      List.unmodifiable(projected),
+      Set.unmodifiable(logIds.intersection(ids)),
+      Set.unmodifiable(adjusted.intersection(ids)),
+      Set.unmodifiable(
+        ids.difference(manual.map((p) => p.id).toSet()).difference(logIds),
+      ),
     );
   }
 }

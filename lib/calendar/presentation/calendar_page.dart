@@ -6,6 +6,8 @@ import '../../journal/application/day_journal.dart';
 import '../../journal/domain/day_entry.dart';
 import '../../journal/presentation/day_entry_labels.dart';
 import '../../periods/application/period_timeline.dart';
+import '../../periods/application/period_day_editor.dart';
+import 'period_days_editor_page.dart';
 import '../../periods/application/period_diary.dart';
 import '../../periods/domain/calendar_date.dart';
 import '../../periods/domain/period.dart';
@@ -34,7 +36,8 @@ class CalendarPage extends StatefulWidget {
   State<CalendarPage> createState() => _CalendarPageState();
 }
 
-class _CalendarPageState extends State<CalendarPage> {
+class _CalendarPageState extends State<CalendarPage>
+    with WidgetsBindingObserver {
   late CalendarDate _date;
   late DateTime _month;
   CalendarView _view = CalendarView.month;
@@ -44,9 +47,21 @@ class _CalendarPageState extends State<CalendarPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _date = widget.initialDate ?? widget.diary.today;
     _month = DateTime(_date.value.year, _date.value.month);
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _load();
   }
 
   Future<void> _load() async {
@@ -65,6 +80,7 @@ class _CalendarPageState extends State<CalendarPage> {
           _periods = PeriodTimeline.from(
             periods: values[0] as List<Period>,
             entries: _journal.entries,
+            periodDays: _journal.periodDays,
             asOf: widget.diary.today,
           ).periods;
         });
@@ -76,16 +92,14 @@ class _CalendarPageState extends State<CalendarPage> {
     }
   }
 
-  bool _periodDay(CalendarDate d) =>
-      _journal.entryFor(d)?.flow != FlowIntensity.none &&
-      _periods.any(
-        (p) =>
-            d == p.start ||
-            (p.start.compareTo(d) <= 0 &&
-                (p.end != null
-                    ? p.end!.compareTo(d) >= 0
-                    : p.isOngoing && d.compareTo(widget.diary.today) <= 0)),
-      );
+  bool _periodDay(CalendarDate d) {
+    if (d.compareTo(widget.diary.today) > 0) return false;
+    final correction = _journal.periodDays[d];
+    if (correction != null) return correction;
+    return _journal.entryFor(d)?.flow != FlowIntensity.none &&
+        _periods.any((p) => p.includes(d, asOf: widget.diary.today));
+  }
+
   Set<CalendarDate> _days(DateTime m) => {
     for (var day = 1; day <= DateTime(m.year, m.month + 1, 0).day; day++)
       if (_periodDay(CalendarDate(m.year, m.month, day)))
@@ -306,6 +320,20 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
+  Future<void> _editPeriodDays() async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PeriodDaysEditorPage(
+          editor: PeriodDayEditor(diary: widget.diary, journal: widget.journal),
+          initialDate: _view == CalendarView.day
+              ? _date
+              : CalendarDate(_month.year, _month.month, 1),
+        ),
+      ),
+    );
+    if (saved == true && mounted) await _load();
+  }
+
   Future<void> _periodEntry() async {
     final result = await showPeriodQuickEntry(
       context,
@@ -375,7 +403,8 @@ class _CalendarPageState extends State<CalendarPage> {
                   _periodDay(_date) ? 'Period recorded' : 'No period recorded',
                   style: HomeDesign.text(20),
                 ),
-                if (entry?.flow != null) ...[
+                if (entry?.flow != null &&
+                    _journal.periodDays[_date] == null) ...[
                   const SizedBox(height: 8),
                   Text(
                     'Flow: ${flowLabel(entry!.flow!)}',
@@ -553,6 +582,27 @@ class _CalendarPageState extends State<CalendarPage> {
               SizedBox(
                 height: 48,
                 child: Align(alignment: Alignment.centerLeft, child: _legend()),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: OutlinedButton.icon(
+                  key: const ValueKey('edit-period-days'),
+                  onPressed: _editPeriodDays,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: HomeDesign.red,
+                    side: const BorderSide(color: HomeDesign.pink),
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 12,
+                    ),
+                  ),
+                  icon: const Icon(Icons.edit_calendar_outlined, size: 19),
+                  label: Text(
+                    'Periodentage bearbeiten',
+                    style: HomeDesign.text(14),
+                  ),
+                ),
               ),
               Expanded(
                 child: switch (_view) {

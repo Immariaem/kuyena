@@ -39,9 +39,11 @@ class PeriodStatusRing extends StatelessWidget {
         ? 'Ca. heute'
         : 'Termin vorbei';
     final countdownDetail = days == null
-        ? 'Mindestens 3 Periodenbeginne nötig'
+        ? 'Zykluslänge oder weitere Beginne ergänzen'
         : days >= 0
-        ? 'Schätzung aus deinen Einträgen'
+        ? overview.estimate!.isInitial
+              ? 'Schätzung mit deinem Richtwert'
+              : 'Mittelwert deiner Startabstände'
         : 'Geschätzt war ${overview.estimate!.expectedStart.display}\nNeuen Beginn eintragen, sobald bekannt';
     final (title, value, detail) = loading
         ? ('Deine Einträge', 'Laden …', 'Einen Moment bitte')
@@ -52,15 +54,15 @@ class PeriodStatusRing extends StatelessWidget {
         : switch (overview.kind) {
             PeriodDayKind.noEntry => (
               logSummary == null ? 'Dein Überblick' : 'Dein Tag',
-              logSummary == null
-                  ? 'Kein Eintrag'
-                  : bleedingAbsent
+              bleedingAbsent
                   ? 'Keine Periode'
+                  : logSummary == null
+                  ? 'Kein Eintrag'
                   : 'Log gespeichert',
-              logSummary == null
-                  ? 'Für diesen Tag liegt noch kein Beginn vor'
-                  : bleedingAbsent
+              bleedingAbsent
                   ? 'Keine Blutung eingetragen'
+                  : logSummary == null
+                  ? 'Für diesen Tag liegt noch kein Beginn vor'
                   : 'Deine Angaben sind gespeichert',
             ),
             PeriodDayKind.unknownEnd => (
@@ -76,7 +78,9 @@ class PeriodStatusRing extends StatelessWidget {
             PeriodDayKind.documentedPeriod => (
               'Deine Periode',
               'Tag ${overview.dayNumber}',
-              'von ${overview.documentedDuration} dokumentierten Tagen',
+              overview.period!.excludedDays.isEmpty
+                  ? 'von ${overview.documentedDuration} dokumentierten Tagen'
+                  : '${overview.period!.documentedDayCount} eingetragene Blutungstage',
             ),
             PeriodDayKind.afterPeriod => (
               'Bis zur nächsten Periode',

@@ -220,7 +220,7 @@ void main() {
       tester.view.physicalSize = size;
       await openHome(tester, journalStorage: days);
       final symptoms = find.text(
-        'Cramps\nHeadache\nFatigue\nBreast tenderness',
+        'Cramps\nHeadache\nFatigue\nBreast tenderness\nBloating\nSkin changes\nBack pain\nNausea\nCravings\nSleep problems',
       );
       expect(symptoms, findsOneWidget);
       await tester.ensureVisible(symptoms);
@@ -557,7 +557,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         find.textContaining(
-          'Median aus den letzten 2 Start-zu-Start-Abständen',
+          'Mittelwert aus 2 dokumentierten Start-zu-Start-Abständen',
         ),
         findsOneWidget,
       );

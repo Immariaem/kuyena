@@ -1,3 +1,9 @@
+import 'profile/application/profile_controller.dart';
+import 'profile/presentation/profile_gate.dart';
+import 'data/storage/local_app_store.dart';
+import 'data/storage/platform_data_lock.dart';
+import 'data/application/data_backup_service.dart';
+import 'data/backup/backup_files.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -10,12 +16,33 @@ import 'periods/data/secure_period_storage.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  final store = LocalAppStore(
+    storage: const SecurePeriodStorage(documentKey: 'kuyena.local_data.v1'),
+    legacyPeriods: const SecurePeriodStorage(),
+    legacyJournal: const SecurePeriodStorage(
+      documentKey: 'kuyena.day_journal.v1',
+    ),
+    lock: createDataLock(),
+  );
+  final diary = PeriodDiary(
+    repository: LocalPeriodRepository(store.periodStorage),
+    dataLock: store.lock,
+  );
+  final journal = DayJournal(
+    repository: LocalJournalRepository(store.journalStorage),
+    dataLock: store.lock,
+    clock: diary.clock,
+  );
   runApp(
     ZyklusApp(
       showSplash: true,
-      diary: PeriodDiary(
-        repository: const LocalPeriodRepository(SecurePeriodStorage()),
+      profileController: ProfileController(
+        store: store,
+        today: () => diary.today,
       ),
+      diary: diary,
+      journal: journal,
+      backupService: DataBackupService(store: store, today: () => diary.today),
     ),
   );
 }
@@ -26,7 +53,13 @@ class ZyklusApp extends StatelessWidget {
     required this.diary,
     this.journal,
     this.showSplash = false,
+    this.backupService,
+    this.backupFiles,
+    this.profileController,
   });
+  final DataBackupService? backupService;
+  final BackupFiles? backupFiles;
+  final ProfileController? profileController;
   final DayJournal? journal;
   final bool showSplash;
   final PeriodDiary diary;
@@ -43,18 +76,30 @@ class ZyklusApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE58BA5)),
         useMaterial3: true,
       ),
-      home: KuyenaShell(
-        diary: diary,
-        journal:
-            journal ??
-            DayJournal(
-              repository: const LocalJournalRepository(
-                SecurePeriodStorage(documentKey: 'kuyena.day_journal.v1'),
-              ),
-              clock: diary.clock,
+      home: profileController == null
+          ? _shell()
+          : ProfileGate(
+              controller: profileController!,
+              backupService: backupService,
+              backupFiles: backupFiles,
+              child: _shell(),
             ),
-        showSplash: showSplash,
-      ),
     );
   }
+
+  Widget _shell() => KuyenaShell(
+    diary: diary,
+    journal:
+        journal ??
+        DayJournal(
+          repository: const LocalJournalRepository(
+            SecurePeriodStorage(documentKey: 'kuyena.day_journal.v1'),
+          ),
+          clock: diary.clock,
+        ),
+    showSplash: showSplash,
+    backupService: backupService,
+    backupFiles: backupFiles,
+    profileController: profileController,
+  );
 }

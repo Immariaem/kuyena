@@ -24,18 +24,16 @@ List<Period> cycles({bool ongoing = false}) => [
 ];
 
 void main() {
-  test(
-    'Mindestens drei Beginne liefern zwei Abstände; keine Standardlänge',
-    () {
-      expect(CycleEstimate.fromPeriods([]), isNull);
-      expect(CycleEstimate.fromPeriods(cycles().take(2)), isNull);
-      final estimate = CycleEstimate.fromPeriods(cycles())!;
-      expect((estimate.lengthInDays, estimate.cycleCount), (28, 2));
-      expect(estimate.expectedStart, CalendarDate(2026, 11, 17));
-    },
-  );
+  test('Ein Startabstand genügt; ohne eigene Angaben keine Standardlänge', () {
+    expect(CycleEstimate.fromPeriods([]), isNull);
+    expect(CycleEstimate.fromPeriods(cycles().take(1)), isNull);
+    expect(CycleEstimate.fromPeriods(cycles().take(2))!.lengthInDays, 28);
+    final estimate = CycleEstimate.fromPeriods(cycles())!;
+    expect((estimate.lengthInDays, estimate.cycleCount), (28, 2));
+    expect(estimate.expectedStart, CalendarDate(2026, 11, 17));
+  });
 
-  test('Median begrenzt den Einfluss eines einzelnen großen Abstands', () {
+  test('Mittelwert verwendet auch große dokumentierte Abstände', () {
     var date = CalendarDate(2026, 1, 1);
     final periods = [Period(id: '0', start: date)];
     for (final (index, length) in [26, 28, 90].indexed) {
@@ -43,12 +41,12 @@ void main() {
       periods.add(Period(id: '${index + 1}', start: date));
     }
     final estimate = CycleEstimate.fromPeriods(periods)!;
-    expect(estimate.lengthInDays, 28);
+    expect(estimate.lengthInDays, 48);
     expect((estimate.shortestInterval, estimate.longestInterval), (26, 90));
-    expect(estimate.expectedStart, date.addDays(28));
+    expect(estimate.expectedStart, date.addDays(48));
   });
 
-  test('Nur die letzten sechs Abstände zählen', () {
+  test('Alle verfügbaren Startabstände gehen in den Mittelwert ein', () {
     var date = CalendarDate(2025, 1, 1);
     final periods = [Period(id: '0', start: date)];
     for (final (index, length) in [90, 90, 27, 27, 27, 27, 27, 27].indexed) {
@@ -56,7 +54,7 @@ void main() {
       periods.add(Period(id: '${index + 1}', start: date));
     }
     final estimate = CycleEstimate.fromPeriods(periods.reversed)!;
-    expect((estimate.lengthInDays, estimate.cycleCount), (27, 6));
+    expect((estimate.lengthInDays, estimate.cycleCount), (43, 8));
   });
 
   test(
@@ -111,7 +109,8 @@ void main() {
         cycles(),
         CalendarDate(2026, 9, 24),
       );
-      expect(view.estimate, isNull);
+      expect(view.estimate!.cycleCount, 1);
+      expect(view.estimate!.expectedStart, CalendarDate(2026, 10, 20));
     },
   );
 

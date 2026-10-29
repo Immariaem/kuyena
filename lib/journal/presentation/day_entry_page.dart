@@ -1,3 +1,4 @@
+import '../../profile/domain/user_profile.dart';
 import 'package:flutter/material.dart';
 import '../../app/presentation/kuyena_components.dart';
 import '../../home/presentation/home_design.dart';
@@ -11,6 +12,7 @@ class DayEntryPage extends StatefulWidget {
     super.key,
     required this.date,
     required this.journal,
+    this.profile,
     required this.onSaved,
     required this.onBack,
     required this.onSelectTab,
@@ -18,6 +20,7 @@ class DayEntryPage extends StatefulWidget {
   });
   final CalendarDate date;
   final DayJournal journal;
+  final UserProfile? profile;
   final VoidCallback onSaved, onBack;
   final ValueChanged<int> onSelectTab;
   final int active;
@@ -27,6 +30,7 @@ class DayEntryPage extends StatefulWidget {
 
 class _DayEntryPageState extends State<DayEntryPage> {
   final _symptoms = <Symptom>{};
+  bool _showAllFields = false, _showAllSymptoms = false;
   Mood? _mood;
   int? _energy;
   final _note = TextEditingController();
@@ -37,6 +41,7 @@ class _DayEntryPageState extends State<DayEntryPage> {
       _existing = false,
       _dirty = false;
   String? _error;
+  DayEntry? _original;
   @override
   void initState() {
     super.initState();
@@ -60,6 +65,7 @@ class _DayEntryPageState extends State<DayEntryPage> {
       if (!mounted) return;
       final entry = data.entryFor(widget.date);
       setState(() {
+        _original = entry;
         _existing = entry?.hasWellbeing == true;
         _symptoms.addAll(entry?.symptoms ?? {});
         _mood = entry?.mood;
@@ -117,11 +123,17 @@ class _DayEntryPageState extends State<DayEntryPage> {
       _error = null;
     });
     try {
-      await widget.journal.saveWellbeing(entry);
+      await widget.journal.saveWellbeing(
+        entry,
+        expected: _original,
+        checkExpected: true,
+      );
       if (mounted) {
         _dirty = false;
         widget.onSaved();
       }
+    } on JournalConflictException catch (e) {
+      if (mounted) setState(() => _error = e.message);
     } catch (_) {
       if (mounted) {
         setState(
@@ -157,11 +169,17 @@ class _DayEntryPageState extends State<DayEntryPage> {
     if (confirmed != true || !mounted) return;
     setState(() => _saving = true);
     try {
-      await widget.journal.removeWellbeing(widget.date);
+      await widget.journal.removeWellbeing(
+        widget.date,
+        expected: _original,
+        checkExpected: true,
+      );
       if (mounted) {
         _dirty = false;
         widget.onSaved();
       }
+    } on JournalConflictException catch (e) {
+      if (mounted) setState(() => _error = e.message);
     } catch (_) {
       if (mounted) {
         setState(() => _error = 'Could not delete. Please try again.');
@@ -226,6 +244,56 @@ class _DayEntryPageState extends State<DayEntryPage> {
           ),
         ),
       );
+  Widget _symptomChoices() {
+    final preferred = widget.profile?.symptoms ?? <Symptom>{};
+    final visible = Symptom.values
+        .where(
+          (s) =>
+              _showAllSymptoms ||
+              preferred.isEmpty ||
+              preferred.contains(s) ||
+              _symptoms.contains(s),
+        )
+        .toList();
+    Widget chips(List<Symptom> values) => Column(
+      children: [
+        for (var i = 0; i < values.length; i += 2)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: _row([
+              for (final s in values.skip(i).take(2))
+                _chip(
+                  'symptom-${s.name}',
+                  symptomLabel(s),
+                  _symptoms.contains(s),
+                  () => _symptoms.contains(s)
+                      ? _symptoms.remove(s)
+                      : _symptoms.add(s),
+                ),
+            ], 8),
+          ),
+      ],
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        chips(visible),
+        if (preferred.isNotEmpty)
+          TextButton(
+            key: const ValueKey('show-all-symptoms'),
+            onPressed: () =>
+                setState(() => _showAllSymptoms = !_showAllSymptoms),
+            child: Text(
+              _showAllSymptoms
+                  ? 'Deine bevorzugten Symptome'
+                  : 'Weitere Symptome anzeigen',
+              style: HomeDesign.text(12),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _row(List<Widget> chips, double gap) => Row(
     children: [
       for (var i = 0; i < chips.length; i++) ...[
@@ -301,151 +369,152 @@ class _DayEntryPageState extends State<DayEntryPage> {
                 const SizedBox(height: 14),
                 _header('Symptoms', 'Select all that apply'),
                 const SizedBox(height: 5),
-                _row([
-                  for (final s in Symptom.values.take(2))
-                    _chip(
-                      'symptom-${s.name}',
-                      symptomLabel(s),
-                      _symptoms.contains(s),
-                      () => _symptoms.contains(s)
-                          ? _symptoms.remove(s)
-                          : _symptoms.add(s),
+                _symptomChoices(),
+                if (widget.profile != null)
+                  TextButton(
+                    key: const ValueKey('show-all-tracking'),
+                    onPressed: () =>
+                        setState(() => _showAllFields = !_showAllFields),
+                    child: Text(
+                      _showAllFields
+                          ? 'Deine Tracking-Auswahl verwenden'
+                          : 'Alle Tracking-Felder anzeigen',
+                      style: HomeDesign.text(12),
                     ),
-                ], 8),
-                const SizedBox(height: 5),
-                _row([
-                  for (final s in Symptom.values.skip(2))
-                    _chip(
-                      'symptom-${s.name}',
-                      symptomLabel(s),
-                      _symptoms.contains(s),
-                      () => _symptoms.contains(s)
-                          ? _symptoms.remove(s)
-                          : _symptoms.add(s),
-                    ),
-                ], 8),
-                const SizedBox(height: 18),
-                _header('Mood'),
-                const SizedBox(height: 5),
-                _row([
-                  for (final m in Mood.values)
-                    _chip(
-                      'mood-${m.name}',
-                      moodLabel(m),
-                      _mood == m,
-                      () => _mood = _mood == m ? null : m,
-                    ),
-                ], 6),
-                const SizedBox(height: 18),
-                _header(
-                  'Energy',
-                  _energy == null
-                      ? 'Not set'
-                      : _energy! < 34
-                      ? 'Low'
-                      : _energy! < 67
-                      ? 'Medium'
-                      : 'High',
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      'Low',
-                      style: HomeDesign.text(12, weight: FontWeight.w600),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, c) => SizedBox(
-                          height: 32,
-                          child: Stack(
-                            children: [
-                              SliderTheme(
-                                data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 6,
-                                  activeTrackColor: HomeDesign.red,
-                                  inactiveTrackColor: HomeDesign.palePink,
-                                  thumbColor: Colors.transparent,
-                                  overlayShape: SliderComponentShape.noOverlay,
-                                  thumbShape: const RoundSliderThumbShape(
-                                    enabledThumbRadius: 13,
+                  ),
+                if (_showAllFields ||
+                    widget.profile?.trackMoodEnergy != false ||
+                    _mood != null ||
+                    _energy != null) ...[
+                  const SizedBox(height: 18),
+                  _header('Mood'),
+                  const SizedBox(height: 5),
+                  _row([
+                    for (final m in Mood.values)
+                      _chip(
+                        'mood-${m.name}',
+                        moodLabel(m),
+                        _mood == m,
+                        () => _mood = _mood == m ? null : m,
+                      ),
+                  ], 6),
+                  const SizedBox(height: 18),
+                  _header(
+                    'Energy',
+                    _energy == null
+                        ? 'Not set'
+                        : _energy! < 34
+                        ? 'Low'
+                        : _energy! < 67
+                        ? 'Medium'
+                        : 'High',
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Text(
+                        'Low',
+                        style: HomeDesign.text(12, weight: FontWeight.w600),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, c) => SizedBox(
+                            height: 32,
+                            child: Stack(
+                              children: [
+                                SliderTheme(
+                                  data: SliderTheme.of(context).copyWith(
+                                    trackHeight: 6,
+                                    activeTrackColor: HomeDesign.red,
+                                    inactiveTrackColor: HomeDesign.palePink,
+                                    thumbColor: Colors.transparent,
+                                    overlayShape:
+                                        SliderComponentShape.noOverlay,
+                                    thumbShape: const RoundSliderThumbShape(
+                                      enabledThumbRadius: 13,
+                                    ),
+                                  ),
+                                  child: Slider(
+                                    key: const ValueKey('energy-slider'),
+                                    focusNode: _energyFocus,
+                                    value: (_energy ?? 50) / 100,
+                                    padding: EdgeInsets.zero,
+                                    semanticFormatterCallback: (v) =>
+                                        'Energy ${(v * 100).round()} of 100',
+                                    onChanged: _saving
+                                        ? null
+                                        : (v) => setState(() {
+                                            _energy = (v * 100).round();
+                                            _dirty = true;
+                                          }),
                                   ),
                                 ),
-                                child: Slider(
-                                  key: const ValueKey('energy-slider'),
-                                  focusNode: _energyFocus,
-                                  value: (_energy ?? 50) / 100,
-                                  padding: EdgeInsets.zero,
-                                  semanticFormatterCallback: (v) =>
-                                      'Energy ${(v * 100).round()} of 100',
-                                  onChanged: _saving
-                                      ? null
-                                      : (v) => setState(() {
-                                          _energy = (v * 100).round();
-                                          _dirty = true;
-                                        }),
-                                ),
-                              ),
-                              Positioned(
-                                left: (c.maxWidth - 26) * (_energy ?? 50) / 100,
-                                top: 3,
-                                child: const IgnorePointer(
-                                  child: DesignAsset(
-                                    '33621.svg',
-                                    width: 26,
-                                    height: 26,
+                                Positioned(
+                                  left:
+                                      (c.maxWidth - 26) * (_energy ?? 50) / 100,
+                                  top: 3,
+                                  child: const IgnorePointer(
+                                    child: DesignAsset(
+                                      '33621.svg',
+                                      width: 26,
+                                      height: 26,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'High',
-                      style: HomeDesign.text(12, weight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                _header('Note', 'Optional'),
-                const SizedBox(height: 5),
-                TextField(
-                  key: const ValueKey('day-note'),
-                  controller: _note,
-                  enabled: !_saving,
-                  onChanged: (_) => setState(() => _dirty = true),
-                  style: HomeDesign.text(
-                    14,
-                    color: HomeDesign.ink,
-                    weight: FontWeight.w600,
+                      const SizedBox(width: 12),
+                      Text(
+                        'High',
+                        style: HomeDesign.text(12, weight: FontWeight.w600),
+                      ),
+                    ],
                   ),
-                  minLines: 1,
-                  maxLines: 5,
-                  decoration: InputDecoration(
-                    constraints: const BoxConstraints(minHeight: 44),
-                    hintText: 'What would you like to note?',
-                    hintStyle: HomeDesign.text(
+                ],
+                if (_showAllFields ||
+                    widget.profile?.trackNotes != false ||
+                    _note.text.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  _header('Note', 'Optional'),
+                  const SizedBox(height: 5),
+                  TextField(
+                    key: const ValueKey('day-note'),
+                    controller: _note,
+                    enabled: !_saving,
+                    onChanged: (_) => setState(() => _dirty = true),
+                    style: HomeDesign.text(
                       14,
-                      color: HomeDesign.muted,
+                      color: HomeDesign.ink,
                       weight: FontWeight.w600,
                     ),
-                    filled: true,
-                    fillColor: HomeDesign.palePink,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide.none,
+                    minLines: 1,
+                    maxLines: 5,
+                    decoration: InputDecoration(
+                      constraints: const BoxConstraints(minHeight: 44),
+                      hintText: 'What would you like to note?',
+                      hintStyle: HomeDesign.text(
+                        14,
+                        color: HomeDesign.muted,
+                        weight: FontWeight.w600,
+                      ),
+                      filled: true,
+                      fillColor: HomeDesign.palePink,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
                   ),
-                ),
+                ],
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 10),

@@ -38,6 +38,10 @@ dependencies:
     sdk: flutter
   flutter_secure_storage: ^11.2.0
   flutter_svg: ^2.3.0
+  cryptography: ^2.9.0
+  cryptography_flutter: ^2.3.4
+  file_picker: ^13.3.0
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +68,7 @@ flutter:
   assets:
     - assets/home/
     - assets/screens/
+    - assets/onboarding/
 
   fonts:
     - family: NunitoSans

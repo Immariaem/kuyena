@@ -28,13 +28,13 @@ String phaseExplanation(CyclePhaseOverview overview) {
   }
   if (overview.isEstimated) {
     return 'Das ist eine vorläufige Kalenderschätzung. Die nächste Periode wird aus '
-        'dem Median deiner letzten bis zu sechs Abstände zwischen Periodenbeginnen geschätzt '
-        '(mindestens drei dokumentierte Beginne). '
+        'dem Mittelwert deiner dokumentierten Abstände zwischen Periodenbeginnen geschätzt. '
+        'Solange noch kein Abstand vorliegt, kann deine genaue übliche Zykluslänge als Richtwert dienen. '
         'Als grobe Orientierung liegt „Around ovulation“ 10–16 Tage vor diesem geschätzten Beginn '
         '(${overview.earliestOvulation!.display} bis ${overview.latestOvulation!.display}). '
         'Davor wird nach dem dokumentierten Periodenende die Follikelphase, danach die Lutealphase geschätzt. '
         'Die tatsächliche Phase oder ein Eisprung lassen sich damit nicht bestätigen. '
-        'Diese Berechnung wird später durch die für Kuyena festgelegten Regeln ersetzt.';
+        'Eine Periodenschätzung ist keine zuverlässige Eisprung- oder Fruchtbarkeitsbestimmung und eignet sich nicht zur Verhütung.';
   }
   return switch (overview.unknownReason) {
     PhaseUnknownReason.noPeriod =>
@@ -47,7 +47,7 @@ String phaseExplanation(CyclePhaseOverview overview) {
           'Du kannst das Ende ergänzen oder die Blutung im Log dokumentieren.',
     PhaseUnknownReason.insufficientHistory =>
       'Nach deiner Periode fehlen noch genügend vergangene Zyklen für eine Schätzung. '
-          'Vorläufig braucht Kuyena mindestens drei Periodenbeginne, also zwei Abstände zwischen den Beginnen. '
+          'Du kannst deine genaue übliche Zykluslänge unter „Cycle & App“ ergänzen. Alternativ genügt ein dokumentierter Startabstand. '
           'Bis dahin wird keine weitere Phase angenommen.',
     PhaseUnknownReason.predictionReached =>
       'Der geschätzte nächste Periodenbeginn ist erreicht oder vorbei. '

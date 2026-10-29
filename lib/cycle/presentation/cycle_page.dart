@@ -1,3 +1,9 @@
+import '../../profile/application/profile_controller.dart';
+import '../../profile/presentation/onboarding_flow.dart';
+import '../../profile/presentation/privacy_page.dart';
+import '../../data/application/data_backup_service.dart';
+import '../../data/backup/backup_files.dart';
+import '../../data/presentation/data_backup_page.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,7 +23,13 @@ class CyclePage extends StatefulWidget {
     required this.onSelect,
     required this.onLog,
     required this.onHistory,
+    this.backupService,
+    this.backupFiles,
+    this.profileController,
   });
+  final DataBackupService? backupService;
+  final BackupFiles? backupFiles;
+  final ProfileController? profileController;
   final PeriodDiary diary;
   final DayJournal journal;
   final ValueChanged<int> onSelect;
@@ -26,14 +38,26 @@ class CyclePage extends StatefulWidget {
   State<CyclePage> createState() => _CyclePageState();
 }
 
-class _CyclePageState extends State<CyclePage> {
+class _CyclePageState extends State<CyclePage> with WidgetsBindingObserver {
   List<Period> _periods = [];
   JournalData _journal = JournalData();
   bool _loading = true, _failed = false, _busy = false;
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_busy) _load();
   }
 
   Future<void> _load() async {
@@ -42,6 +66,7 @@ class _CyclePageState extends State<CyclePage> {
       _failed = false;
     });
     try {
+      await widget.profileController?.load();
       final data = await Future.wait<Object>([
         widget.diary.load(),
         widget.journal.load(),
@@ -52,6 +77,7 @@ class _CyclePageState extends State<CyclePage> {
           _periods = PeriodTimeline.from(
             periods: data[0] as List<Period>,
             entries: _journal.entries,
+            periodDays: _journal.periodDays,
             asOf: widget.diary.today,
           ).periods;
         });
@@ -78,7 +104,26 @@ class _CyclePageState extends State<CyclePage> {
   String _average(List<int> values) => values.isEmpty
       ? '—'
       : '${(values.reduce((a, b) => a + b) / values.length).toStringAsFixed(1).replaceFirst(RegExp(r'\.0$'), '')} d';
+  Future<void> _preferences([int? section]) async {
+    if (_busy || widget.profileController == null) return;
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => OnboardingFlow(
+          controller: widget.profileController!,
+          editing: true,
+          initialSection: section,
+        ),
+      ),
+    );
+    if (mounted) await _load();
+  }
+
   Future<void> _reminders() async {
+    if (widget.profileController != null) {
+      await _preferences(7);
+      return;
+    }
+
     if (_busy) return;
     setState(() => _busy = true);
     try {
@@ -105,6 +150,19 @@ class _CyclePageState extends State<CyclePage> {
     }
   }
 
+  Future<void> _backup() async {
+    if (_busy || widget.backupService == null) return;
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => DataBackupPage(
+          service: widget.backupService!,
+          files: widget.backupFiles ?? BackupFiles(),
+        ),
+      ),
+    );
+    if (mounted) await _load();
+  }
+
   Future<void> _export() async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -115,22 +173,28 @@ class _CyclePageState extends State<CyclePage> {
         widget.journal.load(),
       ]);
       final periods = data[0] as List<Period>, journal = data[1] as JournalData;
-      final json = const JsonEncoder.withIndent('  ').convert({
-        'format': 'kuyena-export',
-        'version': 1,
-        'periods': periods
-            .map(
-              (p) => {
-                'id': p.id,
-                'start': p.start.iso,
-                'end': p.end?.iso,
-                'ongoing': p.isOngoing,
-              },
-            )
-            .toList(),
-        'dayEntries': journal.entries.map((e) => e.toJson()).toList(),
-        'reminders': journal.reminders,
-      });
+      final json = widget.backupService != null
+          ? await widget.backupService!.jsonExport()
+          : const JsonEncoder.withIndent('  ').convert({
+              'format': 'kuyena-export',
+              'version': 2,
+              'periods': periods
+                  .map(
+                    (p) => {
+                      'id': p.id,
+                      'start': p.start.iso,
+                      'end': p.end?.iso,
+                      'ongoing': p.isOngoing,
+                    },
+                  )
+                  .toList(),
+              'dayEntries': journal.entries.map((e) => e.toJson()).toList(),
+              'periodDays': [
+                for (final date in journal.periodDays.keys.toList()..sort())
+                  {'date': date.iso, 'period': journal.periodDays[date]},
+              ],
+              'reminders': journal.reminders,
+            });
       if (!mounted) return;
       setState(() => _busy = false);
       await showModalBottomSheet<void>(
@@ -213,7 +277,7 @@ class _CyclePageState extends State<CyclePage> {
       builder: (c) => AlertDialog(
         title: const Text('Delete all local data?'),
         content: const Text(
-          'This permanently removes your period dates, day entries and reminder setting from this app on this device. It cannot be undone.',
+          'This permanently removes your period dates, day entries, personal preferences and reminder settings from this app on this device. It cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -230,8 +294,12 @@ class _CyclePageState extends State<CyclePage> {
     if (confirmed != true || !mounted) return;
     setState(() => _busy = true);
     try {
-      await widget.diary.clear();
-      await widget.journal.clear();
+      if (widget.backupService != null) {
+        await widget.backupService!.store.clear();
+      } else {
+        await widget.diary.clear();
+        await widget.journal.clear();
+      }
       await _load();
       if (mounted) {
         showDesignNotice(context, 'Local data deleted.');
@@ -242,7 +310,7 @@ class _CyclePageState extends State<CyclePage> {
         await showDesignInfo(
           context,
           'Deletion incomplete',
-          'Some data could not be deleted. Period dates and day entries are stored separately. Check the entries and try again.',
+          'Deletion could not be fully confirmed. Please reload and try again. Any old storage copies must also be removed.',
         );
       }
     } finally {
@@ -349,6 +417,17 @@ class _CyclePageState extends State<CyclePage> {
               ),
               const SizedBox(height: 16),
               DesignButton(label: 'Try again', onPressed: _load),
+              if (widget.backupService != null) ...[
+                const SizedBox(height: 12),
+                DesignButton(
+                  label: 'Sicherung wiederherstellen',
+                  onPressed: _busy ? null : _backup,
+                ),
+                TextButton(
+                  onPressed: _busy ? null : _clear,
+                  child: const Text('Alle lokalen Daten löschen'),
+                ),
+              ],
             ],
           )
         : Column(
@@ -361,7 +440,7 @@ class _CyclePageState extends State<CyclePage> {
                   _stat(
                     _average([
                       for (final p in _periods)
-                        if (p.end != null) p.start.daysUntil(p.end!) + 1,
+                        if (p.end != null) p.documentedDayCount!,
                     ]),
                     'Period length',
                   ),
@@ -385,7 +464,7 @@ class _CyclePageState extends State<CyclePage> {
                     onPressed: () => showDesignInfo(
                       context,
                       'Your averages',
-                      'Cycle length is the arithmetic mean of ${_intervals.length} recorded start-to-start intervals. An interval is skipped if the earlier period is still marked ongoing or its end overlaps the next start. Period length includes completed periods only; both the first and last day count. The Home countdown uses the median of recent intervals instead of this average. These summaries are not a diagnosis.',
+                      'Cycle length is the arithmetic mean of ${_intervals.length} recorded start-to-start intervals. An interval is skipped if the earlier period is still marked ongoing or its end overlaps the next start. Period length counts marked bleeding days in completed periods; removed calendar days are excluded. The Home countdown uses the rounded arithmetic mean of the recorded start intervals. Before an interval is available, your precise self-reported length can be used as an initial estimate. These summaries are not a diagnosis.',
                     ),
                     child: Text(
                       'Calculation details',
@@ -442,12 +521,24 @@ class _CyclePageState extends State<CyclePage> {
                 ),
               ),
               const SizedBox(height: 6),
+              if (widget.profileController != null) ...[
+                _row(
+                  'Deine Angaben & Einstellungen',
+                  '2acf8.svg',
+                  _preferences,
+                  hint: 'Zyklus, Ziele, Tracking, Bewegung, Ernährung',
+                ),
+                const SizedBox(height: 4),
+              ],
               _row('Edit cycle data', '2acf8.svg', widget.onHistory),
               const SizedBox(height: 4),
               _row(
                 'Reminders',
                 '4d5fb.svg',
                 _reminders,
+                hint: widget.profileController == null
+                    ? null
+                    : 'Uhrzeit und Hinweise innerhalb der App',
                 trailing: Semantics(
                   toggled: _journal.reminders,
                   button: true,
@@ -478,22 +569,34 @@ class _CyclePageState extends State<CyclePage> {
               _row(
                 'Export data',
                 '8635b.svg',
-                _periods.isEmpty && _journal.entries.isEmpty ? null : _export,
-                disabled: _periods.isEmpty && _journal.entries.isEmpty,
-                hint: _periods.isEmpty && _journal.entries.isEmpty
+                _periods.isEmpty &&
+                        _journal.entries.isEmpty &&
+                        _journal.periodDays.isEmpty
+                    ? null
+                    : _export,
+                disabled:
+                    _periods.isEmpty &&
+                    _journal.entries.isEmpty &&
+                    _journal.periodDays.isEmpty,
+                hint:
+                    _periods.isEmpty &&
+                        _journal.entries.isEmpty &&
+                        _journal.periodDays.isEmpty
                     ? 'Available after your first entry.'
                     : null,
               ),
               const SizedBox(height: 4),
+              if (widget.backupService != null) ...[
+                _row('Sicherung & Wiederherstellung', '8635b.svg', _backup),
+                const SizedBox(height: 4),
+              ],
               _row('Delete all local data', 'f680b.svg', _clear),
               const SizedBox(height: 4),
               _row(
                 'Privacy information',
                 '50cd2.svg',
-                () => showDesignInfo(
-                  context,
-                  'Privacy information',
-                  'Kuyena does not need an account. Period dates and day entries are stored locally through the platform secure-storage plugin. The app does not send your entries to a server.\n\nIn the browser, storage belongs to this browser profile and website address. Clearing site data can remove your entries. Browser storage is still experimental in this prototype; use test data.\n\nA JSON export is a readable copy. Only copy it when you want to keep or share it. Different devices do not sync automatically.',
+                () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const PrivacyPage()),
                 ),
               ),
               const SizedBox(height: 4),

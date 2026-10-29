@@ -1,5 +1,7 @@
 # Periodentag, wachsender Bogen und persönlicher Countdown
 
+Aktueller Speicherstand vom 29.10.2026: [Gemeinsame lokale Datenbasis, Sicherung und Wiederherstellung](lokale-datenbasis.md). Die folgenden Abschnitte dokumentieren den jeweiligen früheren Meilenstein.
+
 Stand: 26.10.2026. Der Kreis verwendet lokal dokumentierte Perioden.
 Die übrigen Karten zu Phase, Beschwerden und Bewegung bleiben Designbeispiele.
 
@@ -66,26 +68,26 @@ eines erfundenen Prozentwerts. Die Tageszahl wird trotzdem angezeigt.
 ## Formel aus persönlichen Einträgen
 
 1. Abstände zwischen aufeinanderfolgenden Periodenbeginnen in Kalendertagen zählen.
-2. Von den letzten höchstens sechs Abständen den Median berechnen.
-3. Letzter Beginn plus Median ergibt den geschätzten nächsten Beginn.
+2. Den arithmetischen Mittelwert der verfügbaren Startabstände berechnen und auf ganze Tage runden.
+3. Letzter Beginn plus geschätzte Zykluslänge ergibt den nächsten ungefähren Beginn.
 4. Abstand vom ausgewählten Tag zu diesem Datum ergibt den Countdown.
 
-Bei 26, 28 und 30 Tagen ist der Median 28. Bei einer geraden Anzahl wird
-der Mittelwert der beiden mittleren Werte auf ganze Tage gerundet. Es
-wird keine feste Zykluslänge von 28 Tagen unterstellt. Für diese einfache
-Rechnung braucht man keine zusätzlichen Angaben etwa zu Gewicht.
+Bei 26, 28 und 30 Tagen ist der Mittelwert 28. Ohne Startabstand wird die genaue,
+selbst angegebene übliche Zykluslänge verwendet, wenn sie bekannt ist. Grobe
+Bereiche wie „24–28 Tage“ werden nicht in eine erfundene Tageszahl umgerechnet.
+Sobald ein Startabstand vorliegt, ersetzt der beobachtete Mittelwert den Richtwert.
+Es wird keine feste Standardlänge unterstellt. Die Rundung erfolgt erst am Ende.
 
-Mindestens drei Beginne, also zwei Abstände, sind die bewusst einfache
-Produktregel dieses Prototyps. Das ist keine medizinisch validierte
-Genauigkeitsschwelle. Bei widersprüchlichen dokumentierten Zeiträumen gibt
-es keine Schätzung. Spätere Beginne werden für eine historische Auswahl
-nicht benutzt. Eingetragene zukünftige Beginne werden ebenfalls nicht als
-bereits beobachtete Grundlage verwendet.
+Bei widersprüchlichen oder noch laufend markierten früheren Perioden wird keine
+Vorhersage berechnet. Spätere und zukünftige Beginne werden für eine historische
+Auswahl nicht benutzt. Ein großes Intervall kann den Mittelwert stark verschieben,
+zum Beispiel bei einem fehlenden Eintrag. Das ist eine Grenze der vereinbarten
+Formel, keine medizinisch validierte Vorhersage.
 
 Die Anzeige sagt „Noch ca. N Tage“ oder „Ca. heute“. Ist der geschätzte
 Termin vorbei, steht dort „Termin vorbei“ mit dem erwarteten Datum. Es
 wird weder ein neuer Beginn erfunden noch der Countdown automatisch um
-einen Zyklus weitergeschoben. Beim Antippen sind Median, Anzahl und
+einen Zyklus weitergeschoben. Beim Antippen sind Mittelwert bzw. erster Richtwert, Anzahl und
 Spannweite der verwendeten Abstände und das geschätzte Datum nachlesbar.
 Die Spannweite beschreibt vorhandene Einträge, kein Vertrauensintervall.
 
@@ -101,7 +103,7 @@ zeigt ebenfalls die Grenzen fester Vorhersagedaten.
 
 - `CalendarDate`: Abstand und Addition von Kalendertagen ohne Zeitzonenverschiebung.
 - `Period`: Kennung, Beginn, optionales Ende und ausdrücklich bestätigte laufende Periode.
-- `CycleEstimate`: Median und geschätzter nächster Beginn, ohne Speicherzugriff.
+- `CycleEstimate`: Mittelwert / genauer erster Richtwert und geschätzter nächster Beginn, ohne Speicherzugriff.
 - `PeriodDayOverview`: berechnete Übersicht für den ausgewählten Tag.
 - `PeriodStatusRing`: animierter, passend gefärbter Bogen und Beschriftung.
 - `PeriodDiary` und Repository: bestätigte Änderungen und Erhalt alter Daten.
@@ -111,9 +113,8 @@ Periodenbeginn wird nicht als sicher oder medizinisch bestätigt dargestellt.
 
 ## Prüfung
 
-Am 26.10.2026: alle 86 automatisierten Tests bestanden, Codeprüfung ohne
-Probleme und Browser-Build erfolgreich. Geprüft sind insbesondere Median,
-Datenminimum, Begrenzung auf sechs Abstände, Start bei null, Animation,
+Die automatisierten Tests prüfen insbesondere Mittelwert, Rundung,
+Startabstand und ersten Richtwert, Start bei null, Animation,
 Farbe, Zurücksetzen bei neuem Beginn, reduzierte Bewegung, vergangener
 Schätztermin, aktive Markierung und Erhalt alter Speicherformate.
 Die Tests verwenden ausschließlich erfundene Angaben.
@@ -125,3 +126,8 @@ Bogen, Farbwechsel und Median-Schätzung aus persönlichen Periodenbeginnen
 umgesetzt. Dazu kommen eine ausdrückliche laufende Markierung und das
 abwärtskompatible Lesen alter Dokumente. Die Erklärung und Tests verwenden
 erfundene Beispiele; reale Android-/iOS-Gerätetests stehen weiterhin aus.
+
+
+29.10.2026: Die vom Projekt vorgegebene Mittelwert-Formel ersetzt den früheren
+Median-Prototyp. Sie ist an die Onboarding-Angaben angeschlossen; eine
+Periodenschätzung bestätigt weiterhin keinen Eisprung. Siehe [Onboarding](onboarding.md).

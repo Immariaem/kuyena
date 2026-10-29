@@ -1,5 +1,7 @@
 # Vom Datenmodell zum Code: die Periode
 
+Aktueller Speicherstand vom 29.10.2026: [Gemeinsame lokale Datenbasis, Sicherung und Wiederherstellung](lokale-datenbasis.md). Die folgenden Abschnitte dokumentieren den jeweiligen früheren Meilenstein.
+
 Stand: 26.10.2026. Die Klasse „Periode“ aus unserem logischen Datenmodell
 ist in Dart umgesetzt und mit Eingabemaske und lokaler Speicherung verbunden.
 

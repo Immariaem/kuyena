@@ -25,6 +25,10 @@ final class LocalPeriodRepository implements PeriodRepository {
   Future<List<Period>> load() async {
     final raw = await storage.read();
     if (raw == null) return const [];
+    return decode(raw);
+  }
+
+  static List<Period> decode(String raw) {
     try {
       final document = jsonDecode(raw);
       if (document is! Map<String, dynamic>) {
@@ -75,7 +79,7 @@ final class LocalPeriodRepository implements PeriodRepository {
     }
   }
 
-  void _validateUnique(List<Period> periods) {
+  static void _validateUnique(List<Period> periods) {
     if (periods.map((period) => period.id).toSet().length != periods.length ||
         periods.map((period) => period.start).toSet().length !=
             periods.length) {
@@ -86,7 +90,17 @@ final class LocalPeriodRepository implements PeriodRepository {
   @override
   Future<void> save(List<Period> periods) async {
     _validateUnique(periods);
-    final encoded = jsonEncode({
+    final encoded = encode(periods);
+    await storage.write(encoded);
+    // Verify the platform accepted the value before reporting success to the UI.
+    if (await storage.read() != encoded) {
+      throw StateError('Speichern konnte nicht bestätigt werden.');
+    }
+  }
+
+  static String encode(List<Period> periods) {
+    _validateUnique(periods);
+    return jsonEncode({
       'version': 3,
       'periods': periods
           .map(
@@ -99,11 +113,6 @@ final class LocalPeriodRepository implements PeriodRepository {
           )
           .toList(),
     });
-    await storage.write(encoded);
-    // Verify the platform accepted the value before reporting success to the UI.
-    if (await storage.read() != encoded) {
-      throw StateError('Speichern konnte nicht bestätigt werden.');
-    }
   }
 
   @override
