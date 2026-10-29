@@ -6,6 +6,7 @@ import '../../home/presentation/home_design.dart';
 import '../../journal/application/day_journal.dart';
 import '../../journal/domain/day_entry.dart';
 import '../../periods/application/period_diary.dart';
+import '../../periods/application/period_timeline.dart';
 import '../../periods/domain/period.dart';
 
 class CyclePage extends StatefulWidget {
@@ -47,8 +48,12 @@ class _CyclePageState extends State<CyclePage> {
       ]);
       if (mounted) {
         setState(() {
-          _periods = data[0] as List<Period>;
           _journal = data[1] as JournalData;
+          _periods = PeriodTimeline.from(
+            periods: data[0] as List<Period>,
+            entries: _journal.entries,
+            asOf: widget.diary.today,
+          ).periods;
         });
       }
     } catch (_) {

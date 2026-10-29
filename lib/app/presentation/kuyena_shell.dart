@@ -33,6 +33,7 @@ class _KuyenaShellState extends State<KuyenaShell> with WidgetsBindingObserver {
   late bool _splash;
   JournalData? _journal;
   CalendarDate? _dismissedReminder;
+  CalendarDate? _calendarInitialDate;
   @override
   void initState() {
     super.initState();
@@ -61,18 +62,21 @@ class _KuyenaShellState extends State<KuyenaShell> with WidgetsBindingObserver {
     }
   }
 
-  void _select(int tab) {
+  void _select(int tab, {CalendarDate? calendarDate}) {
     setState(() {
       _tab = tab;
+      _calendarInitialDate = calendarDate;
       _revision++;
     });
     _loadReminder();
   }
 
   Future<void> _history() async {
-    await Navigator.of(context).push(
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => PeriodHomePage(diary: widget.diary),
+        builder: (_) =>
+            PeriodHomePage(diary: widget.diary, journal: widget.journal),
       ),
     );
     if (mounted) {
@@ -82,6 +86,7 @@ class _KuyenaShellState extends State<KuyenaShell> with WidgetsBindingObserver {
   }
 
   Future<void> _log([CalendarDate? date]) async {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => _LogFlow(
@@ -106,6 +111,7 @@ class _KuyenaShellState extends State<KuyenaShell> with WidgetsBindingObserver {
     final page = switch (_tab) {
       1 => CalendarPage(
         key: ValueKey('calendar-$_revision'),
+        initialDate: _calendarInitialDate,
         diary: widget.diary,
         journal: widget.journal,
         onSelect: _select,
@@ -124,7 +130,8 @@ class _KuyenaShellState extends State<KuyenaShell> with WidgetsBindingObserver {
       _ => KuyenaHomePage(
         key: ValueKey('home-$_revision'),
         diary: widget.diary,
-        onCalendar: () => _select(1),
+        journal: widget.journal,
+        onCalendar: (date) => _select(1, calendarDate: date),
         onLog: _log,
         onForYou: () => _select(2),
         onCycle: () => _select(3),
@@ -134,7 +141,7 @@ class _KuyenaShellState extends State<KuyenaShell> with WidgetsBindingObserver {
     final remind =
         _tab == 0 &&
         _journal?.reminders == true &&
-        _journal?.entryFor(today) == null &&
+        _journal?.entryFor(today)?.hasWellbeing != true &&
         _dismissedReminder != today;
     return PopScope(
       canPop: _tab == 0,

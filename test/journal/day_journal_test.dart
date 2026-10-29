@@ -175,4 +175,102 @@ void main() {
       expect((await journal.load()).reminders, isFalse);
     },
   );
+  test(
+    'wellbeing saves merge the latest bleeding and preserve zero energy',
+    () async {
+      await journal.setFlow(today, FlowIntensity.light);
+      final draft = DayEntry(
+        date: today,
+        symptoms: {Symptom.headache},
+        energy: 0,
+      );
+      await journal.setFlow(today, FlowIntensity.heavy);
+      await journal.saveWellbeing(draft);
+      final entry = (await journal.load()).entryFor(today)!;
+      expect(entry.flow, FlowIntensity.heavy);
+      expect(entry.symptoms, {Symptom.headache});
+      expect(entry.energy, 0);
+    },
+  );
+  test(
+    'deleting wellbeing preserves bleeding, other days and reminders',
+    () async {
+      await journal.save(
+        DayEntry(
+          date: today,
+          flow: FlowIntensity.none,
+          symptoms: {Symptom.cramps},
+          mood: Mood.low,
+          energy: 0,
+          note: 'note',
+        ),
+      );
+      await journal.saveWellbeing(
+        DayEntry(date: today.addDays(-1), note: 'Keep'),
+      );
+      await journal.setReminders(true);
+      await journal.removeWellbeing(today);
+      final data = await journal.load();
+      expect(data.entryFor(today)!.flow, FlowIntensity.none);
+      expect(data.entryFor(today)!.hasWellbeing, isFalse);
+      expect(data.entryFor(today.addDays(-1))!.note, 'Keep');
+      expect(data.reminders, isTrue);
+    },
+  );
+  test(
+    'bleeding changes and removal preserve wellbeing; empty records disappear',
+    () async {
+      await journal.saveWellbeing(
+        DayEntry(date: today, symptoms: {Symptom.fatigue}, energy: 0),
+      );
+      await journal.setFlow(today, FlowIntensity.light);
+      await journal.setFlow(today, null);
+      final entry = (await journal.load()).entryFor(today)!;
+      expect(entry.flow, isNull);
+      expect(entry.symptoms, {Symptom.fatigue});
+      expect(entry.energy, 0);
+      await journal.removeWellbeing(today);
+      expect((await journal.load()).entryFor(today), isNull);
+    },
+  );
+  test(
+    'queued independent changes retain both period and wellbeing inputs',
+    () async {
+      await Future.wait([
+        journal.saveWellbeing(
+          DayEntry(date: today, symptoms: {Symptom.fatigue}),
+        ),
+        journal.setFlow(today, FlowIntensity.light),
+      ]);
+      final entry = (await journal.load()).entryFor(today)!;
+      expect(entry.symptoms, {Symptom.fatigue});
+      expect(entry.flow, FlowIntensity.light);
+    },
+  );
+  test(
+    'empty wellbeing, future inputs and failed writes preserve existing bleeding',
+    () async {
+      await journal.setFlow(today, FlowIntensity.light);
+      final before = storage.value;
+      await expectLater(
+        journal.saveWellbeing(DayEntry(date: today)),
+        throwsArgumentError,
+      );
+      await expectLater(
+        journal.saveWellbeing(DayEntry(date: today.addDays(1), note: 'future')),
+        throwsArgumentError,
+      );
+      await expectLater(
+        journal.setFlow(today.addDays(1), FlowIntensity.none),
+        throwsArgumentError,
+      );
+      storage.failWrite = true;
+      await expectLater(
+        journal.saveWellbeing(DayEntry(date: today, note: 'draft')),
+        throwsStateError,
+      );
+      await expectLater(journal.removeWellbeing(today), throwsStateError);
+      expect(storage.value, before);
+    },
+  );
 }

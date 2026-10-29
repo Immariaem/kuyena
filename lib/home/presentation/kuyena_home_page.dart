@@ -7,30 +7,41 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../periods/application/period_diary.dart';
+import '../../periods/application/period_timeline.dart';
+import '../../journal/application/day_journal.dart';
+import '../../journal/domain/day_entry.dart';
+import '../../journal/presentation/day_entry_labels.dart';
+import '../../app/presentation/kuyena_components.dart';
 import '../../periods/domain/calendar_date.dart';
+import '../../periods/domain/cycle_phase_overview.dart';
 import '../../periods/domain/period.dart';
 import '../../periods/domain/period_day_overview.dart';
 import '../../periods/presentation/period_home_page.dart';
+import '../../periods/presentation/period_quick_sheet.dart';
 import 'home_design.dart';
 import 'curved_date_slider.dart';
+import 'cycle_phase_labels.dart';
 import 'home_desktop_layout.dart';
 import 'period_status_ring.dart';
 
-/// The ring uses saved observations; the other cards remain design examples.
+/// Observations and provisional phase estimates follow the selected day.
 class KuyenaHomePage extends StatefulWidget {
   const KuyenaHomePage({
     super.key,
     required this.diary,
-    this.onCalendar,
+    this.journal,
+    required this.onCalendar,
     this.onLog,
     this.onForYou,
     this.onCycle,
   });
 
-  final VoidCallback? onCalendar, onForYou, onCycle;
+  final ValueChanged<CalendarDate> onCalendar;
+  final VoidCallback? onForYou, onCycle;
   final ValueChanged<CalendarDate>? onLog;
 
   final PeriodDiary diary;
+  final DayJournal? journal;
 
   @override
   State<KuyenaHomePage> createState() => _KuyenaHomePageState();
@@ -41,6 +52,8 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
   late CalendarDate _selectedDate;
   late CalendarDate _today;
   List<Period> _periods = const [];
+  JournalData _journalData = JournalData();
+  PeriodTimeline? _timeline;
   bool _loadingPeriods = true;
   bool _periodLoadFailed = false;
   int _loadRequest = 0;
@@ -66,7 +79,8 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
   @override
   void didUpdateWidget(covariant KuyenaHomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.diary != widget.diary) {
+    if (oldWidget.diary != widget.diary ||
+        oldWidget.journal != widget.journal) {
       _refreshDay();
       _loadPeriods();
       _scheduleDayChange();
@@ -110,9 +124,22 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
       _periodLoadFailed = false;
     });
     try {
-      final periods = await widget.diary.load();
+      final values = await Future.wait<Object>([
+        widget.diary.load(),
+        widget.journal?.load() ?? Future.value(JournalData()),
+      ]);
+      final journal = values[1] as JournalData;
+      final timeline = PeriodTimeline.from(
+        periods: values[0] as List<Period>,
+        entries: journal.entries,
+        asOf: _today,
+      );
       if (mounted && request == _loadRequest) {
-        setState(() => _periods = periods);
+        setState(() {
+          _journalData = journal;
+          _timeline = timeline;
+          _periods = timeline.periods;
+        });
       }
     } catch (_) {
       if (mounted && request == _loadRequest) {
@@ -134,10 +161,13 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
   void _selectDate(CalendarDate date) => setState(() => _selectedDate = date);
 
   Future<void> _openDiary({bool log = false}) async {
-    await Navigator.of(context).push(
+    await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            PeriodHomePage(diary: widget.diary, openEntryOnLoad: log),
+        builder: (_) => PeriodHomePage(
+          diary: widget.diary,
+          openEntryOnLoad: log,
+          journal: widget.journal,
+        ),
       ),
     );
     if (!mounted) return;
@@ -145,19 +175,127 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
     await _loadPeriods();
   }
 
-  PeriodDayOverview get _overview =>
-      PeriodDayOverview.fromPeriods(_periods, _selectedDate, asOf: _today);
+  Future<void> _quickPeriod() async {
+    final result = await showPeriodQuickEntry(
+      context,
+      diary: widget.diary,
+      journal: widget.journal,
+      date: _selectedDate,
+    );
+    if (!mounted) return;
+    if (result == PeriodQuickResult.calendar) {
+      widget.onCalendar(_selectedDate);
+    } else if (result == PeriodQuickResult.saved) {
+      _refreshDay();
+      await _loadPeriods();
+    }
+  }
+
+  DayEntry? get _dayEntry => _journalData.entryFor(_selectedDate);
+  PeriodDayOverview get _overview => PeriodDayOverview.fromPeriods(
+    _periods,
+    _selectedDate,
+    asOf: _today,
+    bleedingAbsent: _dayEntry?.flow == FlowIntensity.none,
+    bleedingPresent:
+        _dayEntry?.flow != null && _dayEntry?.flow != FlowIntensity.none,
+  );
+
+  CyclePhaseOverview get _phase => CyclePhaseOverview.fromDay(_overview);
+
+  Widget _informationCards(double scale) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      OutlinedButton.icon(
+        key: const ValueKey('home-period-action'),
+        onPressed:
+            _loadingPeriods ||
+                _periodLoadFailed ||
+                _selectedDate.compareTo(_today) > 0
+            ? null
+            : _quickPeriod,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: HomeDesign.red,
+          backgroundColor: HomeDesign.palePink,
+          side: const BorderSide(color: HomeDesign.pink),
+          shape: const StadiumBorder(),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+        icon: const Icon(Icons.water_drop_outlined, size: 20),
+        label: Text(
+          _overview.period?.end == null && _overview.period != null
+              ? _overview.period!.isOngoing
+                    ? 'Periode beenden'
+                    : 'Ende ergänzen'
+              : _overview.isPeriod
+              ? 'Periode bearbeiten'
+              : 'Periode starten',
+          style: HomeDesign.text(15 * scale),
+        ),
+      ),
+      SizedBox(height: 14 * scale),
+      _InformationCards(
+        scale: scale,
+        phase: _phase,
+        entry: _dayEntry,
+        isToday: _selectedDate == _today,
+        loading: _loadingPeriods,
+        loadFailed: _periodLoadFailed,
+        onPhase: _showPhaseDetails,
+        onSymptoms: _showSymptomsDetails,
+        onMovement:
+            widget.onForYou ?? () => _showPreview(recommendations: true),
+      ),
+    ],
+  );
+
+  void _showPhaseDetails() {
+    if (_loadingPeriods) return;
+    if (_periodLoadFailed) {
+      _loadPeriods();
+      return;
+    }
+    showDesignInfo(
+      context,
+      phaseLabel(_phase),
+      'Am ${_selectedDate.display}: ${phaseExplanation(_phase)}',
+    );
+  }
+
+  void _showSymptomsDetails() {
+    if (_loadingPeriods) return;
+    if (_periodLoadFailed) {
+      _loadPeriods();
+      return;
+    }
+    final symptoms = _dayEntry?.symptoms ?? <Symptom>{};
+    showDesignInfo(
+      context,
+      symptoms.isEmpty ? 'Possible symptoms' : 'Logged symptoms',
+      symptoms.isEmpty
+          ? 'Für den ${_selectedDate.display} sind keine Symptome eingetragen. '
+                '„Cramps“ bleibt hier vorerst ein allgemeines Designbeispiel, '
+                'keine Vorhersage deiner Beschwerden. Du kannst Symptome unabhängig von einer Periode im Log dokumentieren.'
+          : 'Am ${_selectedDate.display} hast du folgende Symptome dokumentiert: '
+                '${Symptom.values.where(symptoms.contains).map(symptomLabel).join(', ')}. '
+                'Die Karte zeigt deine Einträge für den ausgewählten Tag.',
+    );
+  }
 
   Widget _periodRing(double scale) => PeriodStatusRing(
     scale: scale,
     overview: _overview,
     isToday: _selectedDate == _today,
     loading: _loadingPeriods,
+    logSummary: _dayEntry == null
+        ? null
+        : dayEntrySummary(_dayEntry!, compact: true),
+    bleedingAbsent: _dayEntry?.flow == FlowIntensity.none,
     loadFailed: _periodLoadFailed,
     onTap: () {
       if (_periodLoadFailed) {
         _loadPeriods();
-      } else if (_overview.kind == PeriodDayKind.noEntry) {
+      } else if (_overview.kind == PeriodDayKind.noEntry && _dayEntry == null) {
         _openDiary(log: true);
       } else {
         _showPeriodDetails();
@@ -167,7 +305,21 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
 
   Future<void> _showPeriodDetails() async {
     final overview = _overview;
-    final period = overview.period!;
+    final period = overview.period;
+    final entry = _dayEntry;
+    if (period == null) {
+      await showDesignInfo(
+        context,
+        'Dein Tageseintrag',
+        entry == null
+            ? 'Für diesen Tag liegt kein Eintrag vor.'
+            : dayEntrySummary(entry),
+      );
+      return;
+    }
+    final fromLog = _timeline?.logPeriodIds.contains(period.id) == true;
+    final adjustedFromLog =
+        _timeline?.logAdjustedIds.contains(period.id) == true;
     final edit = await showModalBottomSheet<bool>(
       context: context,
       showDragHandle: true,
@@ -180,6 +332,29 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Deine dokumentierten Angaben', style: HomeDesign.text(24)),
+            if (entry != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Log am ${entry.date.display}: ${dayEntrySummary(entry)}',
+                style: HomeDesign.text(
+                  14,
+                  weight: FontWeight.w600,
+                  height: 1.5,
+                ),
+              ),
+            ],
+            if (fromLog || adjustedFromLog) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Diese Anzeige berücksichtigt deine Blutungsangaben im Log. Light, Medium und Heavy starten oder führen die Periode fort; None beendet sie mit dem Vortag als letztem Tag.',
+                style: HomeDesign.text(
+                  14,
+                  color: HomeDesign.muted,
+                  weight: FontWeight.w600,
+                  height: 1.5,
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Text(
               'Ausgewählter Tag: ${overview.date.display}\n'
@@ -194,7 +369,7 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
                         'Bitte prüfe deine Einträge; der Kreis legt dafür keinen Periodentag fest.'
                   : 'Der Beginn zählt als Tag 1. Am ausgewählten Tag ist deshalb Tag ${overview.dayNumber} seit Beginn. '
                         '${period.isOngoing
-                            ? 'Du hast diese Periode ausdrücklich als noch laufend markiert; der Bogen ist deshalb rot.'
+                            ? (fromLog || adjustedFromLog ? 'Die zuletzt eingetragene Blutung führt die Periode fort; mit None beendest du sie.' : 'Du hast diese Periode ausdrücklich als noch laufend markiert; der Bogen ist deshalb rot.')
                             : period.end == null
                             ? 'Ein unbekanntes Ende bestätigt nicht, dass die Blutung noch läuft. Du kannst „Periode läuft noch“ beim Bearbeiten aktivieren.'
                             : 'Innerhalb des dokumentierten Periodenzeitraums ist der Bogen rot, danach hellrosa.'}',
@@ -259,9 +434,10 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
               recommendations
                   ? 'Für dich liegen noch keine persönlichen Empfehlungen vor. '
                         'Die Bewegungsideen auf der Startseite sind Beispiele.'
-                  : 'Zyklusphase, Beschwerden und Bewegungsideen auf dieser '
-                        'Startseite sind Beispieldaten, keine Auswertung deiner gespeicherten Einträge. '
-                        'Der Kreis verwendet dagegen deinen dokumentierten Beginn und das optionale Ende.',
+                  : 'Der Kreis und „Logged symptoms“ verwenden deine gespeicherten Angaben für den ausgewählten Tag. '
+                        'Weitere Zyklusphasen sind vorläufige Kalenderschätzungen und entsprechend gekennzeichnet. '
+                        '„Possible symptoms“ und Bewegungsideen sind allgemeine Beispiele, '
+                        'keine Auswertung deiner gespeicherten Einträge.',
               style: HomeDesign.text(
                 16,
                 color: HomeDesign.ink,
@@ -342,15 +518,9 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
               return HomeDesktopLayout(
                 selectedDate: _selectedDate,
                 hero: _desktopHero(),
-                information: _InformationCards(
-                  scale: 1.1,
-                  onPreview: _showPreview,
-                  onMovement:
-                      widget.onForYou ??
-                      () => _showPreview(recommendations: true),
-                ),
+                information: _informationCards(1.1),
                 onToday: _selectToday,
-                onCalendar: widget.onCalendar ?? () => _openDiary(),
+                onCalendar: () => widget.onCalendar(_selectedDate),
                 onLog: widget.onLog == null
                     ? () => _openDiary(log: true)
                     : () => widget.onLog!(_selectedDate),
@@ -377,7 +547,7 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
                     color: Colors.white,
                     child: Semantics(
                       label:
-                          'Kuyena Startseite. Der Kreis nutzt deine Einträge. Weitere Karten sind Designbeispiele.',
+                          'Kuyena Startseite. Kreis, Phase und Symptome beziehen sich auf den ausgewählten Tag. Schätzungen und Beispiele sind gekennzeichnet.',
                       container: true,
                       child: Column(
                         children: [
@@ -485,15 +655,7 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
                                         padding: EdgeInsets.symmetric(
                                           horizontal: 26 * scale,
                                         ),
-                                        child: _InformationCards(
-                                          scale: scale,
-                                          onPreview: _showPreview,
-                                          onMovement:
-                                              widget.onForYou ??
-                                              () => _showPreview(
-                                                recommendations: true,
-                                              ),
-                                        ),
+                                        child: _informationCards(scale),
                                       ),
                                       SizedBox(height: 25 * scale),
                                     ],
@@ -508,7 +670,7 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
                                 ? 'Periode eintragen'
                                 : 'Log your day',
                             onHome: _selectToday,
-                            onCalendar: widget.onCalendar ?? () => _openDiary(),
+                            onCalendar: () => widget.onCalendar(_selectedDate),
                             onLog: widget.onLog == null
                                 ? () => _openDiary(log: true)
                                 : () => widget.onLog!(_selectedDate),
@@ -657,18 +819,28 @@ class _DateToolbar extends StatelessWidget {
 class _InformationCards extends StatelessWidget {
   const _InformationCards({
     required this.scale,
-    required this.onPreview,
+    required this.phase,
+    required this.entry,
+    required this.isToday,
+    required this.loading,
+    required this.loadFailed,
+    required this.onPhase,
+    required this.onSymptoms,
     required this.onMovement,
   });
   final double scale;
-  final VoidCallback onPreview;
-  final VoidCallback onMovement;
+  final CyclePhaseOverview phase;
+  final DayEntry? entry;
+  final bool isToday, loading, loadFailed;
+  final VoidCallback onPhase, onSymptoms, onMovement;
 
   Widget _card({
+    Key? key,
     required Widget child,
     required Color color,
     required VoidCallback onTap,
   }) => Material(
+    key: key,
     color: color,
     borderRadius: BorderRadius.circular(26 * scale),
     child: InkWell(
@@ -679,86 +851,114 @@ class _InformationCards extends StatelessWidget {
           12 * scale,
           10 * scale,
           12 * scale,
-          6 * scale,
+          10 * scale,
         ),
         child: child,
       ),
     ),
   );
 
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget _information({
+    required String heading,
+    required String value,
+    required String hint,
+    double size = 22,
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: _card(
-              color: HomeDesign.palePink,
-              onTap: onPreview,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Current phase', style: HomeDesign.text(12 * scale)),
-                  SizedBox(height: 3 * scale),
-                  Text(
-                    'Luteal phase',
-                    style: HomeDesign.text(22 * scale, height: 28 / 22),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SizedBox(width: 14 * scale),
-          Expanded(
-            child: _card(
-              color: HomeDesign.palePink,
-              onTap: onPreview,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Possible symptoms',
-                    style: HomeDesign.text(11 * scale, height: 16 / 11),
-                  ),
-                  SizedBox(height: 3 * scale),
-                  Text(
-                    'Cramps',
-                    style: HomeDesign.text(22 * scale, height: 28 / 22),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-      SizedBox(height: 13 * scale),
-      _card(
-        color: HomeDesign.pink,
-        onTap: onMovement,
-        child: Column(
+      Text(heading, style: HomeDesign.text(11 * scale, height: 16 / 11)),
+      SizedBox(height: 3 * scale),
+      Text(value, style: HomeDesign.text(size * scale, height: 1.27)),
+      SizedBox(height: 5 * scale),
+      Text(hint, style: HomeDesign.text(10.5 * scale, weight: FontWeight.w600)),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final symptoms = Symptom.values
+        .where((symptom) => entry?.symptoms.contains(symptom) == true)
+        .toList();
+    final unavailable = loading || loadFailed;
+    final status = loading ? 'Loading…' : 'Unavailable';
+    final statusHint = loading ? 'Reading your entries' : 'Tap to try again';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Suggested movement',
-              style: HomeDesign.text(18 * scale, height: 23 / 18),
+            Expanded(
+              child: _card(
+                key: const ValueKey('home-phase-card'),
+                color: HomeDesign.palePink,
+                onTap: onPhase,
+                child: _information(
+                  heading: !unavailable && phase.isEstimated
+                      ? 'Estimated phase'
+                      : isToday
+                      ? 'Current phase'
+                      : 'Phase on this day',
+                  value: unavailable ? status : phaseLabel(phase),
+                  hint: unavailable ? statusHint : phaseHint(phase),
+                ),
+              ),
             ),
-            SizedBox(height: 3 * scale),
-            Text(
-              'Walking · Swimming · Yoga',
-              style: HomeDesign.text(15 * scale),
-            ),
-            SizedBox(height: 3 * scale),
-            Text(
-              'Choose what feels right today.',
-              style: HomeDesign.text(12 * scale, weight: FontWeight.w600),
+            SizedBox(width: 14 * scale),
+            Expanded(
+              child: _card(
+                key: const ValueKey('home-symptoms-card'),
+                color: HomeDesign.palePink,
+                onTap: onSymptoms,
+                child: _information(
+                  heading: unavailable
+                      ? 'Symptoms'
+                      : symptoms.isEmpty
+                      ? 'Possible symptoms'
+                      : 'Logged symptoms',
+                  value: unavailable
+                      ? status
+                      : symptoms.isEmpty
+                      ? 'Cramps'
+                      : symptoms.map(symptomLabel).join('\n'),
+                  hint: unavailable
+                      ? statusHint
+                      : symptoms.isEmpty
+                      ? 'Example · not a prediction'
+                      : 'From your log',
+                  size: symptoms.length > 1 ? 18 : 22,
+                ),
+              ),
             ),
           ],
         ),
-      ),
-    ],
-  );
+        SizedBox(height: 13 * scale),
+        _card(
+          color: HomeDesign.pink,
+          onTap: onMovement,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Suggested movement',
+                style: HomeDesign.text(18 * scale, height: 23 / 18),
+              ),
+              SizedBox(height: 3 * scale),
+              Text(
+                'Walking · Swimming · Yoga',
+                style: HomeDesign.text(15 * scale),
+              ),
+              SizedBox(height: 3 * scale),
+              Text(
+                'Choose what feels right today.',
+                style: HomeDesign.text(12 * scale, weight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _BottomNavigation extends StatelessWidget {

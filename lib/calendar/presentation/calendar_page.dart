@@ -4,10 +4,12 @@ import '../../app/presentation/kuyena_components.dart';
 import '../../home/presentation/home_design.dart';
 import '../../journal/application/day_journal.dart';
 import '../../journal/domain/day_entry.dart';
-import '../../journal/presentation/day_entry_page.dart';
+import '../../journal/presentation/day_entry_labels.dart';
+import '../../periods/application/period_timeline.dart';
 import '../../periods/application/period_diary.dart';
 import '../../periods/domain/calendar_date.dart';
 import '../../periods/domain/period.dart';
+import '../../periods/presentation/period_quick_sheet.dart';
 import 'calendar_widgets.dart';
 
 enum CalendarView { day, month, year }
@@ -20,7 +22,9 @@ class CalendarPage extends StatefulWidget {
     required this.onSelect,
     required this.onLog,
     required this.onHistory,
+    this.initialDate,
   });
+  final CalendarDate? initialDate;
   final PeriodDiary diary;
   final DayJournal journal;
   final ValueChanged<int> onSelect;
@@ -40,7 +44,7 @@ class _CalendarPageState extends State<CalendarPage> {
   @override
   void initState() {
     super.initState();
-    _date = widget.diary.today;
+    _date = widget.initialDate ?? widget.diary.today;
     _month = DateTime(_date.value.year, _date.value.month);
     _load();
   }
@@ -57,8 +61,12 @@ class _CalendarPageState extends State<CalendarPage> {
       ]);
       if (mounted) {
         setState(() {
-          _periods = values[0] as List<Period>;
           _journal = values[1] as JournalData;
+          _periods = PeriodTimeline.from(
+            periods: values[0] as List<Period>,
+            entries: _journal.entries,
+            asOf: widget.diary.today,
+          ).periods;
         });
       }
     } catch (_) {
@@ -68,14 +76,16 @@ class _CalendarPageState extends State<CalendarPage> {
     }
   }
 
-  bool _periodDay(CalendarDate d) => _periods.any(
-    (p) =>
-        d == p.start ||
-        (p.start.compareTo(d) <= 0 &&
-            (p.end != null
-                ? p.end!.compareTo(d) >= 0
-                : p.isOngoing && d.compareTo(widget.diary.today) <= 0)),
-  );
+  bool _periodDay(CalendarDate d) =>
+      _journal.entryFor(d)?.flow != FlowIntensity.none &&
+      _periods.any(
+        (p) =>
+            d == p.start ||
+            (p.start.compareTo(d) <= 0 &&
+                (p.end != null
+                    ? p.end!.compareTo(d) >= 0
+                    : p.isOngoing && d.compareTo(widget.diary.today) <= 0)),
+      );
   Set<CalendarDate> _days(DateTime m) => {
     for (var day = 1; day <= DateTime(m.year, m.month + 1, 0).day; day++)
       if (_periodDay(CalendarDate(m.year, m.month, day)))
@@ -251,7 +261,7 @@ class _CalendarPageState extends State<CalendarPage> {
           ),
         ],
       ),
-      if (_journal.entries.isNotEmpty)
+      if (_journal.entries.any((e) => e.hasWellbeing))
         Text(
           '• Day entry',
           style: HomeDesign.text(11, weight: FontWeight.w700),
@@ -269,7 +279,10 @@ class _CalendarPageState extends State<CalendarPage> {
         today: widget.diary.today,
         onSelect: _selectDate,
         periodDays: _days(shiftMonth(_month, offset)),
-        entryDays: _journal.entries.map((e) => e.date).toSet(),
+        entryDays: _journal.entries
+            .where((e) => e.hasWellbeing)
+            .map((e) => e.date)
+            .toSet(),
       ),
     );
     return CustomScrollView(
@@ -291,6 +304,24 @@ class _CalendarPageState extends State<CalendarPage> {
         ),
       ],
     );
+  }
+
+  Future<void> _periodEntry() async {
+    final result = await showPeriodQuickEntry(
+      context,
+      diary: widget.diary,
+      journal: widget.journal,
+      date: _date,
+    );
+    if (!mounted) return;
+    if (result == PeriodQuickResult.calendar) {
+      setState(() {
+        _month = DateTime(_date.value.year, _date.value.month);
+        _view = CalendarView.month;
+      });
+    } else if (result == PeriodQuickResult.saved) {
+      await _load();
+    }
   }
 
   Widget _day() {
@@ -344,14 +375,41 @@ class _CalendarPageState extends State<CalendarPage> {
                   _periodDay(_date) ? 'Period recorded' : 'No period recorded',
                   style: HomeDesign.text(20),
                 ),
+                if (entry?.flow != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Flow: ${flowLabel(entry!.flow!)}',
+                    style: HomeDesign.text(14),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                DesignButton(
+                  key: const ValueKey('calendar-period-action'),
+                  label: 'Periode eintragen / beenden',
+                  onPressed: _date.compareTo(widget.diary.today) > 0
+                      ? null
+                      : _periodEntry,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: HomeDesign.palePink,
+              borderRadius: BorderRadius.circular(26),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Your wellbeing', style: HomeDesign.text(20)),
                 const SizedBox(height: 10),
                 Text(
-                  entry == null
+                  entry?.hasWellbeing != true
                       ? 'No day entry yet.'
                       : [
-                          if (entry.flow != null)
-                            'Flow: ${flowLabel(entry.flow!)}',
-                          if (entry.symptoms.isNotEmpty)
+                          if (entry!.symptoms.isNotEmpty)
                             'Symptoms: ${entry.symptoms.map(symptomLabel).join(', ')}',
                           if (entry.mood != null)
                             'Mood: ${moodLabel(entry.mood!)}',
@@ -368,7 +426,9 @@ class _CalendarPageState extends State<CalendarPage> {
                 ),
                 const SizedBox(height: 20),
                 DesignButton(
-                  label: entry == null ? 'Log this day' : 'Edit day entry',
+                  label: entry?.hasWellbeing != true
+                      ? 'Log this day'
+                      : 'Edit day entry',
                   onPressed: _date.compareTo(widget.diary.today) > 0
                       ? null
                       : () => widget.onLog(_date),

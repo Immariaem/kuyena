@@ -15,8 +15,12 @@ class PeriodStatusRing extends StatelessWidget {
     required this.loading,
     required this.loadFailed,
     required this.onTap,
+    this.logSummary,
+    this.bleedingAbsent = false,
   });
 
+  final String? logSummary;
+  final bool bleedingAbsent;
   final double scale;
   final PeriodDayOverview overview;
   final bool isToday;
@@ -47,9 +51,17 @@ class PeriodStatusRing extends StatelessWidget {
         ? ('Bis zur nächsten Periode', countdownValue, countdownDetail)
         : switch (overview.kind) {
             PeriodDayKind.noEntry => (
-              'Dein Überblick',
-              'Kein Eintrag',
-              'Für diesen Tag liegt noch kein Beginn vor',
+              logSummary == null ? 'Dein Überblick' : 'Dein Tag',
+              logSummary == null
+                  ? 'Kein Eintrag'
+                  : bleedingAbsent
+                  ? 'Keine Periode'
+                  : 'Log gespeichert',
+              logSummary == null
+                  ? 'Für diesen Tag liegt noch kein Beginn vor'
+                  : bleedingAbsent
+                  ? 'Keine Blutung eingetragen'
+                  : 'Deine Angaben sind gespeichert',
             ),
             PeriodDayKind.unknownEnd => (
               'Bis zur nächsten Periode',
@@ -80,7 +92,8 @@ class PeriodStatusRing extends StatelessWidget {
     final dateLabel = isToday ? 'Heute' : 'Am ${overview.date.display}';
     return Semantics(
       button: true,
-      label: '$dateLabel. $title. $value. $detail. Details anzeigen.',
+      label:
+          '$dateLabel. $title. $value. $detail. ${logSummary ?? ''} Details anzeigen.',
       excludeSemantics: true,
       child: InkWell(
         key: const ValueKey('period-status-ring'),
@@ -167,6 +180,21 @@ class PeriodStatusRing extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (logSummary != null && !loading && !loadFailed) ...[
+                        SizedBox(height: 6 * scale),
+                        Text(
+                          'Log: $logSummary',
+                          key: const ValueKey('ring-log-summary'),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: HomeDesign.text(
+                            11 * scale,
+                            weight: FontWeight.w600,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

@@ -230,7 +230,7 @@ class HomeDesktopLayout extends StatelessWidget {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Zyklusphase und Empfehlungen als Designbeispiel.',
+                                'Deine Einträge und eine vorläufige Phasenschätzung. Bewegungsideen bleiben allgemeine Beispiele.',
                                 style: HomeDesign.text(
                                   14,
                                   color: HomeDesign.muted,

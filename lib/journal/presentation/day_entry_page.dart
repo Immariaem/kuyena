@@ -4,24 +4,7 @@ import '../../home/presentation/home_design.dart';
 import '../../periods/domain/calendar_date.dart';
 import '../application/day_journal.dart';
 import '../domain/day_entry.dart';
-
-String symptomLabel(Symptom s) => switch (s) {
-  Symptom.cramps => 'Cramps',
-  Symptom.headache => 'Headache',
-  Symptom.fatigue => 'Fatigue',
-  Symptom.breastTenderness => 'Breast tenderness',
-};
-String flowLabel(FlowIntensity f) => switch (f) {
-  FlowIntensity.none => 'None',
-  FlowIntensity.light => 'Light',
-  FlowIntensity.medium => 'Medium',
-  FlowIntensity.heavy => 'Heavy',
-};
-String moodLabel(Mood m) => switch (m) {
-  Mood.good => 'Good',
-  Mood.okay => 'Okay',
-  Mood.low => 'Low',
-};
+import 'day_entry_labels.dart';
 
 class DayEntryPage extends StatefulWidget {
   const DayEntryPage({
@@ -43,7 +26,6 @@ class DayEntryPage extends StatefulWidget {
 }
 
 class _DayEntryPageState extends State<DayEntryPage> {
-  FlowIntensity? _flow;
   final _symptoms = <Symptom>{};
   Mood? _mood;
   int? _energy;
@@ -78,8 +60,7 @@ class _DayEntryPageState extends State<DayEntryPage> {
       if (!mounted) return;
       final entry = data.entryFor(widget.date);
       setState(() {
-        _existing = entry != null;
-        _flow = entry?.flow;
+        _existing = entry?.hasWellbeing == true;
         _symptoms.addAll(entry?.symptoms ?? {});
         _mood = entry?.mood;
         _energy = entry?.energy;
@@ -122,7 +103,6 @@ class _DayEntryPageState extends State<DayEntryPage> {
   Future<void> _save() async {
     final entry = DayEntry(
       date: widget.date,
-      flow: _flow,
       symptoms: _symptoms,
       mood: _mood,
       energy: _energy,
@@ -137,7 +117,7 @@ class _DayEntryPageState extends State<DayEntryPage> {
       _error = null;
     });
     try {
-      await widget.journal.save(entry);
+      await widget.journal.saveWellbeing(entry);
       if (mounted) {
         _dirty = false;
         widget.onSaved();
@@ -160,7 +140,7 @@ class _DayEntryPageState extends State<DayEntryPage> {
       builder: (c) => AlertDialog(
         title: const Text('Delete this day entry?'),
         content: const Text(
-          'This removes the symptoms, mood, energy and note for this day. Period dates stay as they are.',
+          'This removes only the symptoms, mood, energy and note for this day. All period and bleeding entries stay as they are.',
         ),
         actions: [
           TextButton(
@@ -177,7 +157,7 @@ class _DayEntryPageState extends State<DayEntryPage> {
     if (confirmed != true || !mounted) return;
     setState(() => _saving = true);
     try {
-      await widget.journal.remove(widget.date);
+      await widget.journal.removeWellbeing(widget.date);
       if (mounted) {
         _dirty = false;
         widget.onSaved();
@@ -302,24 +282,23 @@ class _DayEntryPageState extends State<DayEntryPage> {
                 DateSummary(date: widget.date, today: widget.journal.today),
                 const SizedBox(height: 12),
                 _header(
-                  'Flow',
+                  'Your wellbeing',
                   _dirty
                       ? 'Draft'
                       : _existing
                       ? 'Saved'
                       : 'Not set',
                 ),
-                const SizedBox(height: 5),
-                _row([
-                  for (final f in FlowIntensity.values)
-                    _chip(
-                      'flow-${f.name}',
-                      flowLabel(f),
-                      _flow == f,
-                      () => _flow = _flow == f ? null : f,
-                    ),
-                ], 6),
-                const SizedBox(height: 18),
+                const SizedBox(height: 6),
+                Text(
+                  'Track period starts and ends separately on Home.',
+                  style: HomeDesign.text(
+                    12,
+                    color: HomeDesign.muted,
+                    weight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 14),
                 _header('Symptoms', 'Select all that apply'),
                 const SizedBox(height: 5),
                 _row([

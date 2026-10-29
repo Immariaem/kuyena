@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kuyena_tracker/main.dart';
 import 'package:kuyena_tracker/journal/application/day_journal.dart';
 import 'package:kuyena_tracker/journal/data/local_journal_repository.dart';
+import 'package:kuyena_tracker/journal/domain/day_entry.dart';
 import 'package:kuyena_tracker/periods/application/period_diary.dart';
+import 'package:kuyena_tracker/periods/domain/calendar_date.dart';
 import 'package:kuyena_tracker/periods/data/local_period_repository.dart';
 
 import '../support/memory_period_storage.dart';
@@ -67,6 +69,164 @@ void main() {
       findsOneWidget,
     );
     expect(storage.value, isNull);
+  });
+
+  testWidgets('Symptom cards follow the selected day without writing data', (
+    tester,
+  ) async {
+    final days = MemoryPeriodStorage();
+    await LocalJournalRepository(days).save(
+      JournalData(
+        entries: [
+          DayEntry(
+            date: CalendarDate(2026, 10, 22),
+            symptoms: {Symptom.headache, Symptom.fatigue},
+          ),
+        ],
+      ),
+    );
+    final before = days.value;
+    await openHome(tester, journalStorage: days);
+    expect(find.text('Logged symptoms'), findsOneWidget);
+    expect(find.text('Headache\nFatigue'), findsOneWidget);
+    expect(find.text('Possible symptoms'), findsNothing);
+    expect(find.text('Phase unknown'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('date-2026-10-21')));
+    await tester.pumpAndSettle();
+    expect(find.text('Possible symptoms'), findsOneWidget);
+    expect(find.text('Example · not a prediction'), findsOneWidget);
+    expect(find.text('Headache\nFatigue'), findsNothing);
+    final card = find.byKey(const ValueKey('home-symptoms-card'));
+    await tester.ensureVisible(card);
+    await tester.tap(card);
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining(
+        'Für den 21.10.2026 sind keine Symptome eingetragen.',
+      ),
+      findsOneWidget,
+    );
+    expect(days.value, before);
+  });
+
+  testWidgets('Estimated phase changes with the date and explains its limits', (
+    tester,
+  ) async {
+    final storage = MemoryPeriodStorage(
+      jsonEncode({
+        'version': 3,
+        'periods': [
+          {
+            'id': 'a',
+            'start': '2026-08-01',
+            'end': '2026-08-05',
+            'ongoing': false,
+          },
+          {
+            'id': 'b',
+            'start': '2026-08-29',
+            'end': '2026-09-02',
+            'ongoing': false,
+          },
+          {
+            'id': 'c',
+            'start': '2026-09-26',
+            'end': '2026-09-30',
+            'ongoing': false,
+          },
+        ],
+      }),
+    );
+    final before = storage.value;
+    await openHome(
+      tester,
+      storage: storage,
+      clock: () => DateTime(2026, 10, 7),
+    );
+    expect(find.text('Estimated phase'), findsOneWidget);
+    expect(find.text('Follicular phase'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('date-2026-10-08')));
+    await tester.pumpAndSettle();
+    expect(find.text('Around ovulation'), findsOneWidget);
+    expect(find.text('Calendar estimate'), findsOneWidget);
+    final card = find.byKey(const ValueKey('home-phase-card'));
+    await tester.ensureVisible(card);
+    await tester.tap(card);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('nicht bestätigen'), findsOneWidget);
+    expect(storage.value, before);
+  });
+
+  testWidgets(
+    'Failed reads hide stale symptoms and phase; retry restores them',
+    (tester) async {
+      final days = MemoryPeriodStorage();
+      await LocalJournalRepository(days).save(
+        JournalData(
+          entries: [
+            DayEntry(
+              date: CalendarDate(2026, 10, 22),
+              flow: FlowIntensity.light,
+              symptoms: {Symptom.fatigue},
+            ),
+          ],
+        ),
+      );
+      await openHome(tester, journalStorage: days);
+      expect(find.text('Menstruation'), findsOneWidget);
+      expect(find.text('Logged symptoms'), findsOneWidget);
+      days.failRead = true;
+      await tester.tap(find.text('Heute').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Unavailable'), findsNWidgets(2));
+      expect(find.text('Menstruation'), findsNothing);
+      expect(find.text('Logged symptoms'), findsNothing);
+      expect(find.text('Possible symptoms'), findsNothing);
+      days.failRead = false;
+      final card = find.byKey(const ValueKey('home-phase-card'));
+      await tester.ensureVisible(card);
+      await tester.tap(card);
+      await tester.pumpAndSettle();
+      expect(find.text('Menstruation'), findsOneWidget);
+      expect(find.text('Logged symptoms'), findsOneWidget);
+    },
+  );
+
+  testWidgets('All logged symptoms fit phone and desktop with larger text', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final days = MemoryPeriodStorage();
+    await LocalJournalRepository(days).save(
+      JournalData(
+        entries: [
+          DayEntry(
+            date: CalendarDate(2026, 10, 22),
+            symptoms: Symptom.values.toSet(),
+          ),
+        ],
+      ),
+    );
+    for (final size in [
+      const Size(320, 568),
+      const Size(412, 917),
+      const Size(900, 700),
+      const Size(1440, 1000),
+    ]) {
+      tester.view.physicalSize = size;
+      await openHome(tester, journalStorage: days);
+      final symptoms = find.text(
+        'Cramps\nHeadache\nFatigue\nBreast tenderness',
+      );
+      expect(symptoms, findsOneWidget);
+      await tester.ensureVisible(symptoms);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: '$size');
+    }
   });
 
   testWidgets('Plus öffnet Erfassung; Abbrechen erzeugt keinen Eintrag', (

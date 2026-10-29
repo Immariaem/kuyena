@@ -26,12 +26,12 @@ final class DayEntry {
   final Mood? mood;
   final int? energy;
   final String note;
-  bool get isEmpty =>
-      flow == null &&
-      symptoms.isEmpty &&
-      mood == null &&
-      energy == null &&
-      note.trim().isEmpty;
+  bool get hasWellbeing =>
+      symptoms.isNotEmpty ||
+      mood != null ||
+      energy != null ||
+      note.trim().isNotEmpty;
+  bool get isEmpty => flow == null && !hasWellbeing;
   Map<String, Object?> toJson() => {
     'date': date.iso,
     'flow': flow?.name,

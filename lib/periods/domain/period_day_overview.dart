@@ -20,6 +20,8 @@ final class PeriodDayOverview {
     Iterable<Period> periods,
     CalendarDate date, {
     CalendarDate? asOf,
+    bool bleedingAbsent = false,
+    bool bleedingPresent = false,
   }) {
     final observationDay = asOf ?? date;
     final earlier =
@@ -45,7 +47,10 @@ final class PeriodDayOverview {
     return PeriodDayOverview._(
       date,
       latest,
-      latest.isOngoing && date.compareTo(observationDay) <= 0
+      bleedingAbsent
+          ? PeriodDayKind.afterPeriod
+          : (latest.isOngoing || (bleedingPresent && end == null)) &&
+                date.compareTo(observationDay) <= 0
           ? PeriodDayKind.ongoingPeriod
           : end == null
           ? PeriodDayKind.unknownEnd

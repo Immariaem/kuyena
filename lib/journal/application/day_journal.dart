@@ -30,6 +30,66 @@ final class DayJournal {
       ),
     );
   });
+
+  /// Edits only wellbeing; legacy bleeding observations are merged from storage.
+  Future<void> saveWellbeing(DayEntry entry) => _run(() async {
+    if (entry.date.compareTo(today) > 0 || !entry.hasWellbeing) {
+      throw ArgumentError('Add wellbeing for today or an earlier date.');
+    }
+    final current = await repository.load();
+    final previous = current.entryFor(entry.date);
+    await _replace(
+      current,
+      DayEntry(
+        date: entry.date,
+        flow: previous?.flow,
+        symptoms: entry.symptoms,
+        mood: entry.mood,
+        energy: entry.energy,
+        note: entry.note,
+      ),
+    );
+  });
+
+  Future<void> removeWellbeing(CalendarDate date) => _run(() async {
+    final current = await repository.load();
+    await _replace(
+      current,
+      DayEntry(date: date, flow: current.entryFor(date)?.flow),
+    );
+  });
+
+  /// Separate editor for bleeding observations already recorded in the Log.
+  Future<void> setFlow(CalendarDate date, FlowIntensity? flow) =>
+      _run(() async {
+        if (date.compareTo(today) > 0) {
+          throw ArgumentError('No future observations.');
+        }
+        final current = await repository.load();
+        final previous = current.entryFor(date);
+        await _replace(
+          current,
+          DayEntry(
+            date: date,
+            flow: flow,
+            symptoms: previous?.symptoms ?? {},
+            mood: previous?.mood,
+            energy: previous?.energy,
+            note: previous?.note ?? '',
+          ),
+        );
+      });
+
+  Future<void> _replace(JournalData current, DayEntry entry) => repository.save(
+    JournalData(
+      reminders: current.reminders,
+      entries: [
+        ...current.entries.where((e) => e.date != entry.date),
+        if (!entry.isEmpty) entry,
+      ]..sort((a, b) => b.date.compareTo(a.date)),
+    ),
+  );
+
   Future<void> remove(CalendarDate date) => _run(() async {
     final current = await repository.load();
     await repository.save(

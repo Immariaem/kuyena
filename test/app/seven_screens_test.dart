@@ -17,6 +17,7 @@ Future<void> openApp(
   MemoryPeriodStorage? periods,
   MemoryPeriodStorage? days,
   bool splash = false,
+  CalendarDate? currentDay,
 }) async {
   addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
   await tester.pumpWidget(
@@ -24,11 +25,11 @@ Future<void> openApp(
       key: UniqueKey(),
       diary: PeriodDiary(
         repository: LocalPeriodRepository(periods ?? MemoryPeriodStorage()),
-        clock: () => today.value,
+        clock: () => (currentDay ?? today).value,
       ),
       journal: DayJournal(
         repository: LocalJournalRepository(days ?? MemoryPeriodStorage()),
-        clock: () => today.value,
+        clock: () => (currentDay ?? today).value,
       ),
       showSplash: splash,
     ),
@@ -127,6 +128,8 @@ void main() {
     await t.enterText(find.byKey(const ValueKey('day-note')), 'A quiet day');
     await tapKey(t, 'save-day-entry');
     expect(find.text('Hey, girl!'), findsOneWidget);
+    expect(find.text('Logged symptoms'), findsOneWidget);
+    expect(find.text('Fatigue'), findsOneWidget);
     expect(periods.value, isNull);
     final data = await LocalJournalRepository(days).load();
     expect(data.entries.single.symptoms, {Symptom.fatigue});
@@ -139,6 +142,9 @@ void main() {
     await tapKey(t, 'symptom-cramps');
     await tapKey(t, 'save-day-entry');
     expect((await LocalJournalRepository(days).load()).entries.length, 1);
+    expect(find.text('Cramps\nFatigue'), findsOneWidget);
+    await openApp(t, days: days, periods: periods);
+    expect(find.text('Cramps\nFatigue'), findsOneWidget);
     await go(t, 'Calendar');
     await tapKey(t, 'calendar-2026-10-19');
     expect(find.textContaining('Fatigue'), findsOneWidget);
@@ -223,6 +229,8 @@ void main() {
       await tapText(t, 'Delete this entry');
       await tapText(t, 'Delete');
       expect((await LocalJournalRepository(days).load()).entries, isEmpty);
+      expect(find.text('Logged symptoms'), findsNothing);
+      expect(find.text('Possible symptoms'), findsOneWidget);
       expect(periods.value, isNull);
     },
   );
@@ -249,7 +257,7 @@ void main() {
       await go(t, 'Home');
       expect(find.textContaining('A moment for you?'), findsOneWidget);
       await openForm(t);
-      await tapKey(t, 'flow-none');
+      await tapKey(t, 'mood-okay');
       await tapKey(t, 'save-day-entry');
       await go(t, 'Cycle');
       await tapText(t, 'Export data');
@@ -265,6 +273,267 @@ void main() {
       await tapText(t, 'Delete all local data');
       await tapText(t, 'Delete all');
       expect(days.value, isNull);
+    },
+  );
+  testWidgets(
+    'Quick start and end update Home, Calendar and Cycle without a day log',
+    (t) async {
+      final days = MemoryPeriodStorage(), periods = MemoryPeriodStorage();
+      await openApp(t, days: days, periods: periods);
+      await tapKey(t, 'home-period-action');
+      expect(find.text('Periode starten'), findsWidgets);
+      await tapKey(t, 'quick-period-date');
+      await t.tap(
+        find
+            .descendant(
+              of: find.byType(DatePickerDialog),
+              matching: find.text('17'),
+            )
+            .last,
+      );
+      await t.pumpAndSettle();
+      await t.tap(
+        find.text(
+          MaterialLocalizations.of(
+            t.element(find.byType(DatePickerDialog)),
+          ).okButtonLabel,
+        ),
+      );
+      await t.pumpAndSettle();
+      await tapKey(t, 'save-quick-period');
+      expect(find.text('Tag 3'), findsOneWidget);
+      expect(find.text('Menstruation'), findsOneWidget);
+      expect(days.value, isNull);
+      expect(
+        (await LocalPeriodRepository(periods).load()).single.isOngoing,
+        isTrue,
+      );
+      await tapKey(t, 'home-period-action');
+      expect(
+        find.text('Welcher war dein letzter Blutungstag?'),
+        findsOneWidget,
+      );
+      await tapKey(t, 'quick-period-date');
+      await t.tap(
+        find
+            .descendant(
+              of: find.byType(DatePickerDialog),
+              matching: find.text('18'),
+            )
+            .last,
+      );
+      await t.pumpAndSettle();
+      await t.tap(
+        find.text(
+          MaterialLocalizations.of(
+            t.element(find.byType(DatePickerDialog)),
+          ).okButtonLabel,
+        ),
+      );
+      await t.pumpAndSettle();
+      await tapKey(t, 'save-quick-period');
+      expect(find.text('Deine Periode'), findsNothing);
+      expect(
+        (await LocalPeriodRepository(periods).load()).single.end,
+        today.addDays(-1),
+      );
+      expect(days.value, isNull);
+      await go(t, 'Cycle');
+      expect(find.textContaining('17.10.2026'), findsOneWidget);
+      await go(t, 'Calendar');
+      await tapKey(t, 'calendar-2026-10-18');
+      expect(find.text('Period recorded'), findsOneWidget);
+      expect(find.text('No day entry yet.'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('calendar-period-action')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'Wellbeing edits and deletion preserve old bleeding; separate bleeding editor preserves symptoms',
+    (t) async {
+      final days = MemoryPeriodStorage();
+      await LocalJournalRepository(days).save(
+        JournalData(
+          entries: [
+            DayEntry(
+              date: today,
+              flow: FlowIntensity.light,
+              symptoms: {Symptom.cramps},
+            ),
+          ],
+        ),
+      );
+      await openApp(t, days: days);
+      await openForm(t);
+      expect(find.text('Flow'), findsNothing);
+      expect(find.byKey(const ValueKey('flow-none')), findsNothing);
+      await tapKey(t, 'symptom-fatigue');
+      await tapKey(t, 'save-day-entry');
+      expect(
+        (await LocalJournalRepository(days).load()).entries.single.flow,
+        FlowIntensity.light,
+      );
+      await openForm(t);
+      await tapText(t, 'Delete this entry');
+      await tapText(t, 'Delete');
+      expect(find.text('Tag 1'), findsOneWidget);
+      final bleedingOnly = (await LocalJournalRepository(
+        days,
+      ).load()).entries.single;
+      expect(bleedingOnly.flow, FlowIntensity.light);
+      expect(bleedingOnly.hasWellbeing, isFalse);
+      await openForm(t);
+      await tapKey(t, 'symptom-fatigue');
+      await tapKey(t, 'save-day-entry');
+      await go(t, 'Cycle');
+      await tapText(t, 'Edit cycle data');
+      await tapText(t, 'Blutungsangabe bearbeiten');
+      await tapKey(t, 'bleeding-none');
+      await tapKey(t, 'save-bleeding');
+      expect(
+        (await LocalJournalRepository(days).load()).entries.single.flow,
+        FlowIntensity.none,
+      );
+      expect(
+        (await LocalJournalRepository(days).load()).entries.single.symptoms,
+        {Symptom.fatigue},
+      );
+    },
+  );
+
+  testWidgets('Period history from Home opens the selected calendar month', (
+    t,
+  ) async {
+    final periods = MemoryPeriodStorage(), days = MemoryPeriodStorage();
+    await openApp(
+      t,
+      periods: periods,
+      days: days,
+      currentDay: CalendarDate(2026, 10, 1),
+    );
+    await tapKey(t, 'date-2026-09-30');
+    await tapKey(t, 'home-period-action');
+    await tapText(t, 'Periodenverlauf öffnen');
+    expect(find.text('September 2026'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('calendar-view-selector')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('calendar-2026-09-30')), findsOneWidget);
+    expect(find.text('Deine Perioden'), findsNothing);
+    expect(periods.value, isNull);
+    expect(days.value, isNull);
+  });
+
+  testWidgets(
+    'Period history inside Calendar returns to its month; advanced editing stays reachable',
+    (t) async {
+      await openApp(t);
+      await go(t, 'Calendar');
+      await tapKey(t, 'calendar-2026-10-19');
+      await tapKey(t, 'calendar-period-action');
+      await tapText(t, 'Periodenverlauf öffnen');
+      expect(find.byKey(const ValueKey('calendar-2026-10-19')), findsOneWidget);
+      expect(find.text('Deine Perioden'), findsNothing);
+      await go(t, 'Cycle');
+      await tapText(t, 'Edit cycle data');
+      expect(find.text('Deine Perioden'), findsOneWidget);
+    },
+  );
+
+  testWidgets('Quick entry cancel and failed save never create a period', (
+    t,
+  ) async {
+    final periods = MemoryPeriodStorage();
+    await openApp(t, periods: periods);
+    await tapKey(t, 'home-period-action');
+    await tapText(t, 'Abbrechen');
+    expect(periods.value, isNull);
+    await tapKey(t, 'home-period-action');
+    periods.failWrite = true;
+    await tapKey(t, 'save-quick-period');
+    expect(find.textContaining('Deine Eingabe bleibt hier'), findsOneWidget);
+    expect(periods.value, isNull);
+    periods.failWrite = false;
+    await tapKey(t, 'save-quick-period');
+    expect(find.text('Tag 1'), findsOneWidget);
+  });
+
+  testWidgets(
+    'A saved no-bleeding day can be corrected separately in history',
+    (t) async {
+      final days = MemoryPeriodStorage();
+      await LocalJournalRepository(days).save(
+        JournalData(
+          entries: [DayEntry(date: today, flow: FlowIntensity.none)],
+        ),
+      );
+      await openApp(t, days: days);
+      await go(t, 'Cycle');
+      await tapText(t, 'Edit cycle data');
+      await tapText(t, 'Blutungsangaben prüfen');
+      await tapKey(t, 'edit-bleeding-2026-10-19');
+      await tapKey(t, 'bleeding-unset');
+      await tapKey(t, 'save-bleeding');
+      expect((await LocalJournalRepository(days).load()).entries, isEmpty);
+    },
+  );
+
+  testWidgets('Quick period sheet fits phone and desktop with larger text', (
+    t,
+  ) async {
+    t.view.devicePixelRatio = 1;
+    t.platformDispatcher.textScaleFactorTestValue = 1.5;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
+    for (final size in [
+      const Size(320, 568),
+      const Size(412, 917),
+      const Size(1440, 1000),
+    ]) {
+      t.view.physicalSize = size;
+      await openApp(t);
+      await tapKey(t, 'home-period-action');
+      expect(
+        find.text('An welchem Tag hat deine Periode begonnen?'),
+        findsOneWidget,
+      );
+      await tapText(t, 'Abbrechen');
+      expect(t.takeException(), isNull, reason: '$size');
+    }
+  });
+
+  testWidgets(
+    'A symptom-only log is visible in the circle without claiming a period',
+    (t) async {
+      final days = MemoryPeriodStorage();
+      await openApp(t, days: days);
+      await openForm(t);
+      await tapKey(t, 'symptom-cramps');
+      await tapKey(t, 'mood-good');
+      await tapKey(t, 'save-day-entry');
+      expect(find.text('Log gespeichert'), findsOneWidget);
+      expect(find.text('Deine Periode'), findsNothing);
+      expect(find.textContaining('Log: Cramps'), findsOneWidget);
+      await tapKey(t, 'period-status-ring');
+      expect(find.text('Dein Tageseintrag'), findsOneWidget);
+      expect(find.text('Cramps · Mood: Good'), findsOneWidget);
+    },
+  );
+  testWidgets(
+    'Stored log and period failures show an unavailable ring instead of a false zero',
+    (t) async {
+      final days = MemoryPeriodStorage()..failRead = true;
+      await openApp(t, days: days);
+      expect(find.text('Nicht verfügbar'), findsOneWidget);
+      expect(find.text('Kein Eintrag'), findsNothing);
+      days.failRead = false;
+      await tapKey(t, 'period-status-ring');
+      expect(find.text('Kein Eintrag'), findsOneWidget);
     },
   );
   testWidgets('All seven designs fit small phones and desktop windows', (

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../home/presentation/home_design.dart';
+import '../../app/presentation/kuyena_components.dart';
+
 import '../application/period_diary.dart';
 import '../domain/calendar_date.dart';
 import '../domain/period.dart';
@@ -56,6 +59,15 @@ class _PeriodEntryDialogState extends State<PeriodEntryDialog> {
       initialDate: initial.value,
       firstDate: earliest.value,
       lastDate: widget.today.value,
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: ColorScheme.fromSeed(seedColor: HomeDesign.red),
+          textTheme: Theme.of(
+            context,
+          ).textTheme.apply(fontFamily: 'NunitoSans'),
+        ),
+        child: child!,
+      ),
       helpText: isEnd
           ? 'Letzten Periodentag auswählen'
           : 'Ersten Periodentag auswählen',
@@ -103,6 +115,16 @@ class _PeriodEntryDialogState extends State<PeriodEntryDialog> {
     return PopScope(
       canPop: !_saving,
       child: AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        titleTextStyle: HomeDesign.text(24),
+        contentTextStyle: HomeDesign.text(
+          14,
+          color: HomeDesign.muted,
+          weight: FontWeight.w600,
+          height: 1.5,
+        ),
         scrollable: true,
         title: Text(
           widget.initial == null ? 'Periode eintragen' : 'Periode bearbeiten',
@@ -115,20 +137,39 @@ class _PeriodEntryDialogState extends State<PeriodEntryDialog> {
             children: [
               const Text(
                 'Beginn',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontFamily: 'NunitoSans',
+                  fontWeight: FontWeight.w800,
+                  color: HomeDesign.red,
+                ),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 key: const ValueKey('period-start-field'),
                 onPressed: _saving ? null : () => _pickDate(isEnd: false),
-                icon: const Icon(Icons.calendar_today_outlined),
+                style: OutlinedButton.styleFrom(
+                  textStyle: HomeDesign.text(15),
+                  backgroundColor: HomeDesign.palePink,
+                  foregroundColor: HomeDesign.red,
+                  minimumSize: const Size.fromHeight(48),
+                  side: BorderSide.none,
+                  shape: const StadiumBorder(),
+                ),
+                icon: const DesignAsset('6ad9e.svg', width: 22, height: 22),
                 label: Text(_start.display),
               ),
               const SizedBox(height: 20),
-              SwitchListTile.adaptive(
+              SwitchListTile(
                 key: const ValueKey('period-ongoing-switch'),
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Periode läuft noch'),
+                activeTrackColor: HomeDesign.red,
+                activeThumbColor: Colors.white,
+                inactiveTrackColor: HomeDesign.pink,
+                inactiveThumbColor: Colors.white,
+                trackOutlineColor: const WidgetStatePropertyAll(
+                  Colors.transparent,
+                ),
+                title: Text('Periode läuft noch', style: HomeDesign.text(16)),
                 value: _isOngoing,
                 onChanged: _saving
                     ? null
@@ -141,13 +182,25 @@ class _PeriodEntryDialogState extends State<PeriodEntryDialog> {
               const SizedBox(height: 8),
               const Text(
                 'Ende (optional)',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontFamily: 'NunitoSans',
+                  fontWeight: FontWeight.w800,
+                  color: HomeDesign.red,
+                ),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 key: const ValueKey('period-end-field'),
                 onPressed: _saving ? null : () => _pickDate(isEnd: true),
-                icon: const Icon(Icons.event_outlined),
+                style: OutlinedButton.styleFrom(
+                  textStyle: HomeDesign.text(15),
+                  backgroundColor: HomeDesign.palePink,
+                  foregroundColor: HomeDesign.red,
+                  minimumSize: const Size.fromHeight(48),
+                  side: BorderSide.none,
+                  shape: const StadiumBorder(),
+                ),
+                icon: const DesignAsset('6ad9e.svg', width: 22, height: 22),
                 label: Text(_end?.display ?? 'Datum auswählen'),
               ),
               if (_end != null)
@@ -189,10 +242,16 @@ class _PeriodEntryDialogState extends State<PeriodEntryDialog> {
         actions: [
           TextButton(
             onPressed: _saving ? null : () => Navigator.of(context).pop(),
-            child: const Text('Abbrechen'),
+            child: Text('Abbrechen', style: HomeDesign.text(14)),
           ),
           FilledButton(
             key: const ValueKey('period-save-button'),
+            style: FilledButton.styleFrom(
+              backgroundColor: HomeDesign.red,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(130, 48),
+              shape: const StadiumBorder(),
+            ),
             onPressed: _saving ? null : _save,
             child: _saving
                 ? const SizedBox(
@@ -200,7 +259,10 @@ class _PeriodEntryDialogState extends State<PeriodEntryDialog> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Speichern'),
+                : Text(
+                    'Speichern',
+                    style: HomeDesign.text(15, color: Colors.white),
+                  ),
           ),
         ],
       ),

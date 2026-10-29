@@ -286,7 +286,9 @@
         }
       ],
       "callSites": [
-        "lib/app/presentation/kuyena_components.dart"
+        "lib/app/presentation/kuyena_components.dart",
+        "lib/periods/presentation/period_home_page.dart",
+        "lib/periods/presentation/period_entry_dialog.dart"
       ],
       "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
     },
@@ -570,7 +572,8 @@
         }
       ],
       "callSites": [
-        "lib/cycle/presentation/cycle_page.dart"
+        "lib/cycle/presentation/cycle_page.dart",
+        "lib/periods/presentation/period_home_page.dart"
       ],
       "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
     },
@@ -665,7 +668,8 @@
         }
       ],
       "callSites": [
-        "lib/cycle/presentation/cycle_page.dart"
+        "lib/cycle/presentation/cycle_page.dart",
+        "lib/periods/presentation/period_home_page.dart"
       ],
       "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
     },
@@ -722,7 +726,8 @@
         }
       ],
       "callSites": [
-        "lib/cycle/presentation/cycle_page.dart"
+        "lib/cycle/presentation/cycle_page.dart",
+        "lib/periods/presentation/period_home_page.dart"
       ],
       "rendering": "Original proportions; photos use the Figma square cover crop. SVG bounds are explicitly preserved and scaled uniformly for responsive layouts."
     },

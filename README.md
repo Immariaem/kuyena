@@ -5,24 +5,26 @@ Kuyena dokumentiert Perioden mit Beginn und optionalem Ende sowie Symptome, Stim
 
 ## Aktueller Ablauf
 
-- Mit + / Log ein Datum wählen und Symptome, Blutungsstärke, Stimmung, Energie oder eine Notiz speichern.
+- Auf Home unter dem Kreis „Periode starten“ wählen und den Beginn bestätigen. Mit „Periode beenden“ den letzten Blutungstag speichern.
+- Mit + / Log unabhängig davon Symptome, Stimmung, Energie oder eine Notiz für einen Tag speichern.
 - Tageseinträge im Kalender wieder öffnen und bearbeiten.
 - Unter Cycle → Edit cycle data Periodenbeginn und optionales Ende erfassen und korrigieren.
 - Ein Ende später ergänzen oder wieder als unbekannt angeben.
 - „Periode läuft noch“ ausdrücklich markieren und mit einem Enddatum beenden.
-- Auf Home Tage seit Beginn bzw. den dokumentierten Periodentag im Kreis anzeigen.
+- Auf Home den Periodentag aus manuellen Angaben und Blutungsangaben im Log anzeigen; weitere Tagesangaben erscheinen als kurze Zusammenfassung im Kreis.
+- Die Phase für den ausgewählten Tag anzeigen: Menstruation aus Einträgen, weitere Phasen bei ausreichenden Angaben als vorläufige Schätzung. Die Symptomkarte zeigt die tatsächlich eingetragenen Symptome dieses Tages.
 - Einzelne oder alle Einträge nach Bestätigung löschen.
 - Einträge beim erneuten Öffnen aus dem lokalen Speicher laden.
 - Keine Konten, keine Synchronisation und kein Backend für Gesundheitsdaten.
 
-Der Plusknopf öffnet zunächst die Datumsauswahl für einen Tageseintrag.
+Der Plusknopf öffnet ausschließlich die Datumsauswahl für Symptome und Wohlbefinden. Die schnelle Periodeneingabe ist davon getrennt. Nach „Periode starten“ bleibt die Periode aktiv, bis ein Ende erfasst wird; das Enddatum zählt noch als Blutungstag. Abbrechen speichert nichts. Beim Bearbeiten oder Löschen von Wohlbefinden bleiben Perioden und bisherige Blutungsangaben erhalten.
 Die Periodenerfassung erreichst du über Cycle → Edit cycle data →
 „Periode eintragen“. Dort Beginn wählen, bei Bedarf „Ende (optional)“ auswählen und
 „Speichern“ drücken. Bestehende Einträge lassen sich über „Korrigieren“
 bearbeiten. Ein leeres Ende bedeutet unbekannt. Angegebene Enddaten müssen
 zwischen Beginn und heute liegen. Abbrechen speichert keine Änderungen.
 
-Nach Rückkehr zu Home wird der Kreis aktualisiert: Beginn zählt als Tag 1.
+Nach dem Speichern der Periodeneingabe aktualisieren sich Kreis und Phase: Beginn zählt als Tag 1. Auch bisherige Blutungsangaben werden weiterhin berücksichtigt: Light, Medium und Heavy führen den Abschnitt fort; None beendet ihn mit dem Vortag als letztem Tag. Diese Angaben lassen sich im Periodenverlauf über „Blutungsangaben prüfen“ getrennt korrigieren. Symptome und Stimmung allein starten keine Periode.
 Ein unbekanntes Ende wird nicht automatisch als laufende Periode interpretiert.
 Die ausdrückliche Markierung „Periode läuft noch“ macht den Bogen rot,
 sonst ist er hellrosa. Er baut sich von oben im Uhrzeigersinn auf.
@@ -32,6 +34,8 @@ bestätigten Periode den ungefähren Countdown aus dem Median der letzten
 bis zu sechs Startabstände. Antippen erklärt die Rechnung. Zu wenige
 Angaben ergeben keine erfundene Standardlänge; ein vergangener geschätzter
 Termin wird als solcher angezeigt.
+
+Die Regeln und die geplante Sprachumschaltung sind in [Phase und Symptome auf Home](docs/home-phase-symptome.md) einfach erklärt. Die Phasenschätzung wird später durch die vereinbarte Projektberechnung ersetzt.
 
 ## Entwicklung
 
@@ -91,6 +95,8 @@ Der bisherige Speicherschlüssel bleibt erhalten. Ein bloßes Öffnen schreibt
 die Daten nicht um; beschädigte oder unbekannte Formate werden gemeldet.
 
 ## Kursdokumentation
+
+[Getrennte Eingaben und schnelle Periodenaktionen](docs/getrennte-eingaben.md)
 
 [Periodenmodell, Erklärung und aktueller Speicherablauf](docs/periodenmodell.md)
 
