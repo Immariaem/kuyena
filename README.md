@@ -23,6 +23,8 @@ Wir haben die Grundfunktionen umgesetzt: Perioden und tägliches Wohlbefinden er
 
 Persönliche Empfehlungen zu Ernährung und Bewegung sowie Erinnerungen bei geschlossener App möchten wir noch ergänzen. Dafür hat die Zeit im Projekt bisher nicht gereicht. Bei den Empfehlungen zeigen wir deshalb zunächst allgemeine Beispielideen.
 
+![kuyena Mockup](resources/images/kuyenaMockup.png)
+
 ## Workshop 1: Domain Exploration
 
 <details>
