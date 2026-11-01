@@ -13,6 +13,9 @@ import '../../periods/domain/calendar_date.dart';
 import '../../periods/domain/period.dart';
 import '../../periods/presentation/period_quick_sheet.dart';
 import 'calendar_widgets.dart';
+import '../../periods/domain/period_day_overview.dart';
+import '../../periods/domain/cycle_display.dart';
+import 'calendar_forecast.dart';
 
 enum CalendarView { day, month, year }
 
@@ -25,8 +28,12 @@ class CalendarPage extends StatefulWidget {
     required this.onLog,
     required this.onHistory,
     this.initialDate,
+    this.initialCycleLength,
+    this.periodLengthPreference,
   });
   final CalendarDate? initialDate;
+  final int? initialCycleLength;
+  final String? periodLengthPreference;
   final PeriodDiary diary;
   final DayJournal journal;
   final ValueChanged<int> onSelect;
@@ -99,6 +106,21 @@ class _CalendarPageState extends State<CalendarPage>
     return _journal.entryFor(d)?.flow != FlowIntensity.none &&
         _periods.any((p) => p.includes(d, asOf: widget.diary.today));
   }
+
+  CycleDisplay get _cycle => CycleDisplay.fromDay(
+    PeriodDayOverview.fromPeriods(
+      _periods,
+      widget.diary.today,
+      asOf: widget.diary.today,
+      initialCycleLength: widget.initialCycleLength,
+      bleedingAbsent:
+          _journal.periodDays[widget.diary.today] == false ||
+          _journal.entryFor(widget.diary.today)?.flow == FlowIntensity.none,
+    ),
+    asOf: widget.diary.today,
+    history: _periods,
+    periodLengthPreference: widget.periodLengthPreference,
+  );
 
   Set<CalendarDate> _days(DateTime m) => {
     for (var day = 1; day <= DateTime(m.year, m.month + 1, 0).day; day++)
@@ -251,29 +273,108 @@ class _CalendarPageState extends State<CalendarPage>
       child: KeyedSubtree(key: _selectorKey, child: _selectorFace()),
     ),
   );
+  void _showCalendarInfo() {
+    final cycle = _cycle;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.8,
+          ),
+          child: SingleChildScrollView(
+            key: const ValueKey('calendar-info-sheet'),
+            padding: const EdgeInsets.fromLTRB(26, 0, 26, 26),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Kalender & Schätzungen',
+                        style: HomeDesign.text(21),
+                      ),
+                    ),
+                    IconButton(
+                      key: const ValueKey('close-calendar-info'),
+                      tooltip: 'Erklärungen schließen',
+                      onPressed: () => Navigator.pop(sheetContext),
+                      icon: const Icon(Icons.close, color: HomeDesign.red),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _legend(),
+                const SizedBox(height: 22),
+                if (cycle.day.estimate != null)
+                  CalendarForecast(cycle: cycle)
+                else
+                  Text(
+                    'Schätzungen erscheinen, sobald du einen Periodenbeginn eingetragen hast.',
+                    style: HomeDesign.text(
+                      15,
+                      color: HomeDesign.ink,
+                      weight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _calendarActions() => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      _viewSelector(),
+      const SizedBox(width: 6),
+      IconButton(
+        key: const ValueKey('calendar-info'),
+        tooltip: 'Kalender erklären',
+        onPressed: _loading || _failed ? null : _showCalendarInfo,
+        style: IconButton.styleFrom(
+          foregroundColor: Colors.white,
+          disabledForegroundColor: Colors.white54,
+          minimumSize: const Size(40, 40),
+        ),
+        icon: const Icon(Icons.info_outline, size: 22),
+      ),
+    ],
+  );
   Widget _legend() => Wrap(
-    spacing: 18,
+    spacing: 14,
     runSpacing: 6,
     crossAxisAlignment: WrapCrossAlignment.center,
     children: [
-      Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const DesignAsset('5e2d6.svg', width: 9, height: 9),
-          const SizedBox(width: 6),
-          Text('Period', style: HomeDesign.text(11, weight: FontWeight.w700)),
-        ],
-      ),
-      Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const DesignAsset('a04ee.svg', width: 9, height: 9),
-          const SizedBox(width: 6),
-          Text(
-            'Today · ${widget.diary.today.value.day} ${monthNames[widget.diary.today.value.month - 1].substring(0, 3)}',
-            style: HomeDesign.text(11, weight: FontWeight.w700),
-          ),
-        ],
+      _legendItem('Periode', HomeDesign.red),
+      if (_cycle.ovulationStart != null)
+        _legendItem('Eisprungfenster ≈', HomeDesign.ovulationPink),
+      if (_cycle.fertileStart != null)
+        _legendItem('Möglicherweise fruchtbar ≈', HomeDesign.pink),
+      if (_cycle.expectedPeriodDays.isNotEmpty)
+        _legendItem(
+          'Nächste Periode ≈',
+          HomeDesign.predictedPeriod,
+          outlined: true,
+        ),
+      Text(
+        '≈ geschätzt · Heute im weißen Kreis',
+        style: HomeDesign.text(
+          11,
+          color: HomeDesign.muted,
+          weight: FontWeight.w600,
+        ),
       ),
       if (_journal.entries.any((e) => e.hasWellbeing))
         Text(
@@ -282,21 +383,45 @@ class _CalendarPageState extends State<CalendarPage>
         ),
     ],
   );
+  Widget _legendItem(String label, Color color, {bool outlined = false}) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: outlined ? Border.all(color: HomeDesign.red, width: 2) : null,
+        ),
+      ),
+      const SizedBox(width: 5),
+      Text(label, style: HomeDesign.text(11, weight: FontWeight.w700)),
+    ],
+  );
   Widget _months() {
     const center = ValueKey('current-month');
     final before = (_month.year - 1) * 12 + _month.month - 1;
     final after = (9999 - _month.year) * 12 + 13 - _month.month;
     Widget card(int offset) => Padding(
       padding: const EdgeInsets.only(bottom: 20),
-      child: MonthCard(
-        month: shiftMonth(_month, offset),
-        today: widget.diary.today,
-        onSelect: _selectDate,
-        periodDays: _days(shiftMonth(_month, offset)),
-        entryDays: _journal.entries
-            .where((e) => e.hasWellbeing)
-            .map((e) => e.date)
-            .toSet(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          MonthCard(
+            month: shiftMonth(_month, offset),
+            today: widget.diary.today,
+            onSelect: _selectDate,
+            periodDays: _days(shiftMonth(_month, offset)),
+            ovulationDays: _cycle.ovulationDays,
+            fertileDays: _cycle.fertileDays,
+            expectedPeriodDays: _cycle.expectedPeriodDays,
+            entryDays: _journal.entries
+                .where((e) => e.hasWellbeing)
+                .map((e) => e.date)
+                .toSet(),
+          ),
+        ],
       ),
     );
     return CustomScrollView(
@@ -390,6 +515,20 @@ class _CalendarPageState extends State<CalendarPage>
             ],
           ),
           const SizedBox(height: 16),
+          if (_cycle.isFertileDay(_date) ||
+              _cycle.expectedPeriodDays.contains(_date))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                _cycle.isOvulationDay(_date)
+                    ? 'Geschätztes Eisprungfenster · keine gemessene Schwangerschaftswahrscheinlichkeit'
+                    : _cycle.isFertileDay(_date)
+                    ? 'Möglicherweise fruchtbare Zeit · grobe Kalenderschätzung'
+                    : 'Geschätzte Periode · noch kein Eintrag',
+                key: const ValueKey('calendar-day-estimate'),
+                style: HomeDesign.text(15),
+              ),
+            ),
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -538,6 +677,9 @@ class _CalendarPageState extends State<CalendarPage>
                               onSelect: (_) {},
                               mini: true,
                               periodDays: _days(DateTime(_month.year, m)),
+                              ovulationDays: _cycle.ovulationDays,
+                              fertileDays: _cycle.fertileDays,
+                              expectedPeriodDays: _cycle.expectedPeriodDays,
                             ),
                           ),
                         ],
@@ -560,7 +702,7 @@ class _CalendarPageState extends State<CalendarPage>
     active: 1,
     onSelect: widget.onSelect,
     onLog: () => widget.onLog(_date),
-    trailing: _viewSelector(),
+    trailing: _calendarActions(),
     scroll: false,
     padding: const EdgeInsets.fromLTRB(26, 24, 26, 12),
     child: _loading
@@ -579,10 +721,6 @@ class _CalendarPageState extends State<CalendarPage>
         : Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(
-                height: 48,
-                child: Align(alignment: Alignment.centerLeft, child: _legend()),
-              ),
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: OutlinedButton.icon(

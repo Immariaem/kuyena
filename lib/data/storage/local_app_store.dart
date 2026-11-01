@@ -210,6 +210,12 @@ final class LocalAppStore {
         'Der Periodenbeginn darf nicht in der Zukunft liegen.',
       );
     }
+    if (profile.lastPeriodEnd != null &&
+        profile.lastPeriodEnd!.compareTo(today) > 0) {
+      throw const LocalDataException(
+        'Das Periodenende darf nicht in der Zukunft liegen.',
+      );
+    }
     var periods = current.periods;
     var journal = current.journal;
     if (profile.completed &&
@@ -224,7 +230,7 @@ final class LocalAppStore {
       }
       final original = periods == null
           ? <Period>[]
-          : LocalPeriodRepository.decode(periods);
+          : LocalPeriodRepository.decode(periods).toList();
       final observations = journal == null
           ? JournalData()
           : LocalJournalRepository.decode(journal);
@@ -234,25 +240,72 @@ final class LocalAppStore {
         periodDays: observations.periodDays,
         asOf: today,
       );
-      if (!timeline.periods.any((p) => p.start == start)) {
-        if (timeline.periods.any(
-          (p) =>
-              p.includes(start, asOf: today) ||
-              (p.isOngoing && p.start.compareTo(start) < 0),
-        )) {
-          throw const LocalDataException(
-            'Für diesen Zeitraum ist schon eine Periode vorhanden. Prüfe den Beginn bitte im Kalender oder wähle hier „Weiß ich nicht“.',
-          );
-        }
-        original.add(Period(id: 'onboarding-${start.iso}', start: start));
-        if (original.map((p) => p.id).toSet().length != original.length) {
-          throw const LocalDataException(
-            'Dieser Beginn wurde bereits erfasst. Bitte prüfe den Kalender.',
-          );
-        }
-        periods = LocalPeriodRepository.encode(original);
+      final end = profile.lastPeriodEnd;
+      final last = end ?? (profile.lastPeriodOngoing ? today : start);
+      final matching = timeline.periods.where((p) => p.start == start).toList();
+      if (matching.length > 1) {
+        throw const LocalDataException(
+          'Mehrere Perioden haben diesen Beginn. Bitte prüfe den Verlauf im Kalender.',
+        );
       }
+      final others = timeline.periods.where((p) => p.start != start);
+      if (others.any(
+        (p) =>
+            p.start.compareTo(last) <= 0 &&
+            (p.end ?? (p.isOngoing ? today : p.start)).compareTo(start) >= 0,
+      )) {
+        throw const LocalDataException(
+          'Dieser Zeitraum überschneidet sich mit einer vorhandenen Periode. Bitte prüfe die Einträge im Kalender.',
+        );
+      }
+      if (observations.periodDays.entries.any(
+        (e) =>
+            !e.value &&
+            e.key.compareTo(start) >= 0 &&
+            e.key.compareTo(last) <= 0,
+      )) {
+        throw const LocalDataException(
+          'In diesem Zeitraum wurden Tage als ohne Periode markiert. Bitte prüfe sie im Kalender.',
+        );
+      }
+      if (matching.isEmpty) {
+        original.add(
+          Period(
+            id: 'onboarding-${start.iso}',
+            start: start,
+            end: end,
+            isOngoing: profile.lastPeriodOngoing,
+          ),
+        );
+      } else if (end != null || profile.lastPeriodOngoing) {
+        final index = original.indexWhere((p) => p.id == matching.single.id);
+        final existing = matching.single;
+        if (existing.end != end ||
+            existing.isOngoing != profile.lastPeriodOngoing) {
+          if (index < 0 ||
+              existing.end != null ||
+              existing.isOngoing ||
+              existing.excludedDays.isNotEmpty) {
+            throw const LocalDataException(
+              'Für diesen Beginn gibt es bereits andere Angaben. Bitte ändere den Zeitraum im Kalender.',
+            );
+          }
+          original[index] = Period(
+            id: existing.id,
+            start: start,
+            end: end,
+            isOngoing: profile.lastPeriodOngoing,
+          );
+        }
+      }
+      if (original.map((p) => p.id).toSet().length != original.length) {
+        throw const LocalDataException(
+          'Dieser Beginn wurde bereits erfasst. Bitte prüfe den Kalender.',
+        );
+      }
+      periods = LocalPeriodRepository.encode(original);
     }
+
     if (profile.completed) {
       final oldJournal = journal == null
           ? JournalData()

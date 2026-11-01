@@ -308,6 +308,7 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
 
   Widget _periodRing(double scale) => PeriodStatusRing(
     scale: scale,
+    asOf: _today,
     overview: _overview,
     isToday: _selectedDate == _today,
     loading: _loadingPeriods,
@@ -398,10 +399,10 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
                         'Bitte prüfe deine Einträge; der Kreis legt dafür keinen Periodentag fest.'
                   : 'Der Beginn zählt als Tag 1. Am ausgewählten Tag ist deshalb Tag ${overview.dayNumber} seit Beginn. '
                         '${period.isOngoing
-                            ? (fromLog || adjustedFromLog ? 'Die zuletzt eingetragene Blutung führt die Periode fort; mit None beendest du sie.' : 'Du hast diese Periode ausdrücklich als noch laufend markiert; der Bogen ist deshalb rot.')
+                            ? (fromLog || adjustedFromLog ? 'Die zuletzt eingetragene Blutung führt die Periode fort; mit None beendest du sie.' : 'Du hast diese Periode ausdrücklich als noch laufend markiert; die eingetragenen Tage im Kreis sind deshalb rot.')
                             : period.end == null
                             ? 'Ein unbekanntes Ende bestätigt nicht, dass die Blutung noch läuft. Du kannst „Periode läuft noch“ beim Bearbeiten aktivieren.'
-                            : 'An markierten Blutungstagen ist der Bogen rot, außerhalb hellrosa. Entfernte Kalendertage sind keine Blutungstage.'}',
+                            : 'Im Kreis sind eingetragene Blutungstage rot, das geschätzte Eisprungfenster rosa und die übrigen Tage sehr hellrosa. Entfernte Kalendertage sind keine Blutungstage.'}',
               style: HomeDesign.text(
                 16,
                 color: HomeDesign.ink,
@@ -412,15 +413,18 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
             const SizedBox(height: 12),
             Text(
               overview.estimate == null
-                  ? 'Für den Countdown brauchen wir einen Periodenbeginn und deine genaue übliche Zykluslänge oder mindestens einen dokumentierten Startabstand. '
-                        'Bei widersprüchlichen Zeiträumen wird ebenfalls keine Schätzung angezeigt. '
-                        'Es wird keine feste Zykluslänge unterstellt.'
+                  ? 'Für die Schätzung brauchen wir einen Periodenbeginn. Bei widersprüchlichen Angaben bleibt die Schätzung offen. '
+                        'Ohne eigenen Richtwert starten wir vorläufig mit 28 Tagen.'
                   : 'Geschätzte Zykluslänge: ${overview.estimate!.lengthInDays} Tage. '
-                        '${overview.estimate!.isInitial ? 'Das ist dein selbst angegebener Richtwert. ' : 'Das ist der gerundete Mittelwert aus ${overview.estimate!.cycleCount} dokumentierten Start-zu-Start-Abständen. '}'
+                        '${overview.estimate!.isPopulationReference
+                            ? 'Das ist ein allgemeiner Startwert von 28 Tagen und noch kein persönlicher Durchschnitt. '
+                            : overview.estimate!.isInitial
+                            ? 'Das ist dein selbst angegebener Richtwert. '
+                            : 'Das ist der gerundete Mittelwert aus ${overview.estimate!.cycleCount} dokumentierten Start-zu-Start-Abständen. '}'
                         'Diese lagen zwischen ${overview.estimate!.shortestInterval} und ${overview.estimate!.longestInterval} Tagen.\n\n'
                         'Geschätzter nächster Beginn: ${overview.estimate!.expectedStart.display}. '
-                        'Letzter Beginn + geschätzte Zykluslänge − ausgewählter Tag ergibt den Countdown. '
-                        'Der Bogen wächst im geschätzten Zyklus von 0 bis 100 Prozent. '
+                        'Vor dem geschätzten Eisprungfenster zählt der Kreis bis zu dessen Beginn, danach bis zur nächsten Periode. '
+                        'Der Ring zeigt den ganzen geschätzten Zyklus ab dem letzten Beginn im Uhrzeigersinn; der Punkt markiert den ausgewählten Tag. '
                         'Der tatsächliche Beginn kann abweichen; ein überschrittener Termin wird nicht automatisch in den nächsten Zyklus verschoben.',
               style: HomeDesign.text(
                 14,
@@ -619,7 +623,7 @@ class _KuyenaHomePageState extends State<KuyenaHomePage>
                                             children: [
                                               Expanded(
                                                 child: Text(
-                                                  'Hey, girl!',
+                                                  'Hallo',
                                                   maxLines: 1,
                                                   overflow:
                                                       TextOverflow.ellipsis,

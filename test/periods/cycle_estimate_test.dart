@@ -24,14 +24,20 @@ List<Period> cycles({bool ongoing = false}) => [
 ];
 
 void main() {
-  test('Ein Startabstand genügt; ohne eigene Angaben keine Standardlänge', () {
-    expect(CycleEstimate.fromPeriods([]), isNull);
-    expect(CycleEstimate.fromPeriods(cycles().take(1)), isNull);
-    expect(CycleEstimate.fromPeriods(cycles().take(2))!.lengthInDays, 28);
-    final estimate = CycleEstimate.fromPeriods(cycles())!;
-    expect((estimate.lengthInDays, estimate.cycleCount), (28, 2));
-    expect(estimate.expectedStart, CalendarDate(2026, 11, 17));
-  });
+  test(
+    'Allgemeiner 28-Tage-Startwert wird durch eigene Startabstände ersetzt',
+    () {
+      expect(CycleEstimate.fromPeriods([]), isNull);
+      expect(
+        CycleEstimate.fromPeriods(cycles().take(1))!.isPopulationReference,
+        isTrue,
+      );
+      expect(CycleEstimate.fromPeriods(cycles().take(2))!.lengthInDays, 28);
+      final estimate = CycleEstimate.fromPeriods(cycles())!;
+      expect((estimate.lengthInDays, estimate.cycleCount), (28, 2));
+      expect(estimate.expectedStart, CalendarDate(2026, 11, 17));
+    },
+  );
 
   test('Mittelwert verwendet auch große dokumentierte Abstände', () {
     var date = CalendarDate(2026, 1, 1);

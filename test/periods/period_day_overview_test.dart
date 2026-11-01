@@ -19,7 +19,7 @@ void main() {
   });
 
   test(
-    'Der Beginn zählt als Tag 1, unbekanntes Ende liefert keinen Fortschrittsanteil',
+    'Der Beginn zählt als Tag 1, unbekanntes Ende nutzt den vorläufigen Zyklusmaßstab',
     () {
       final period = Period(id: 'a', start: CalendarDate(2026, 10, 20));
       final first = PeriodDayOverview.fromPeriods([period], period.start);
@@ -29,7 +29,8 @@ void main() {
       expect(first.dayNumber, 1);
       expect(third.dayNumber, 3);
       expect(third.kind, PeriodDayKind.unknownEnd);
-      expect(third.progress, isNull);
+      expect(third.progress, closeTo(2 / 28, 0.0001));
+      expect(third.estimate!.isPopulationReference, isTrue);
     },
   );
 
@@ -50,10 +51,10 @@ void main() {
       ], CalendarDate(2026, 10, 25));
       expect(middle.kind, PeriodDayKind.documentedPeriod);
       expect((middle.dayNumber, middle.documentedDuration), (3, 5));
-      expect(middle.progress, closeTo(0.5, 0.0001));
+      expect(middle.progress, closeTo(2 / 28, 0.0001));
       expect(
         (last.kind, last.dayNumber, last.progress),
-        (PeriodDayKind.documentedPeriod, 5, 1.0),
+        (PeriodDayKind.documentedPeriod, 5, 4 / 28),
       );
       expect((after.kind, after.dayNumber), (PeriodDayKind.afterPeriod, 6));
     },

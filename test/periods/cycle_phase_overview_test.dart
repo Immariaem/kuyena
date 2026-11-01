@@ -43,14 +43,14 @@ void main() {
     expect(phase('2026-09-30').phase, CyclePhase.menstruation);
   });
 
-  test('no periods or too few start intervals never invent a phase', () {
+  test('no start stays unknown; a known range permits a provisional phase', () {
     expect(
       phase('2026-10-01', periods: []).unknownReason,
       PhaseUnknownReason.noPeriod,
     );
     expect(
-      phase('2026-10-01', periods: history.skip(2).toList()).unknownReason,
-      PhaseUnknownReason.insufficientHistory,
+      phase('2026-10-01', periods: history.skip(2).toList()).phase,
+      CyclePhase.follicular,
     );
   });
 

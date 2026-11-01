@@ -1,3 +1,5 @@
+import '../../periods/presentation/period_home_page.dart';
+import '../../periods/domain/cycle_estimate.dart';
 import '../../profile/application/profile_controller.dart';
 import '../../profile/presentation/onboarding_flow.dart';
 import '../../profile/presentation/privacy_page.dart';
@@ -101,6 +103,11 @@ class _CyclePageState extends State<CyclePage> with WidgetsBindingObserver {
     ];
   }
 
+  CycleEstimate? get _estimate => CycleEstimate.fromPeriods(
+    _periods,
+    initialLength: widget.profileController?.value?.exactCycleDays,
+  );
+
   String _average(List<int> values) => values.isEmpty
       ? '—'
       : '${(values.reduce((a, b) => a + b) / values.length).toStringAsFixed(1).replaceFirst(RegExp(r'\.0$'), '')} d';
@@ -112,6 +119,17 @@ class _CyclePageState extends State<CyclePage> with WidgetsBindingObserver {
           controller: widget.profileController!,
           editing: true,
           initialSection: section,
+          onEditPeriods: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => PeriodHomePage(
+                  diary: widget.diary,
+                  journal: widget.journal,
+                ),
+              ),
+            );
+            await widget.profileController!.load();
+          },
         ),
       ),
     );
@@ -318,7 +336,7 @@ class _CyclePageState extends State<CyclePage> with WidgetsBindingObserver {
     }
   }
 
-  Widget _stat(String value, String title) => Expanded(
+  Widget _stat(String value, String title, {bool initial = false}) => Expanded(
     child: Container(
       height: 139,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -331,7 +349,10 @@ class _CyclePageState extends State<CyclePage> with WidgetsBindingObserver {
         children: [
           Text(value, style: HomeDesign.text(28, height: 1.214)),
           const SizedBox(height: 2),
-          Text('Average', style: HomeDesign.text(11, height: 1.273)),
+          Text(
+            initial ? 'Erster Richtwert' : 'Average',
+            style: HomeDesign.text(11, height: 1.273),
+          ),
           const SizedBox(height: 2),
           Text(title, style: HomeDesign.text(15, height: 1.333)),
         ],
@@ -435,7 +456,13 @@ class _CyclePageState extends State<CyclePage> with WidgetsBindingObserver {
             children: [
               Row(
                 children: [
-                  _stat(_average(_intervals), 'Cycle length'),
+                  _stat(
+                    _intervals.isEmpty && _estimate != null
+                        ? '${_estimate!.lengthInDays} d'
+                        : _average(_intervals),
+                    'Cycle length',
+                    initial: _intervals.isEmpty && _estimate?.isInitial == true,
+                  ),
                   const SizedBox(width: 14),
                   _stat(
                     _average([
@@ -464,7 +491,7 @@ class _CyclePageState extends State<CyclePage> with WidgetsBindingObserver {
                     onPressed: () => showDesignInfo(
                       context,
                       'Your averages',
-                      'Cycle length is the arithmetic mean of ${_intervals.length} recorded start-to-start intervals. An interval is skipped if the earlier period is still marked ongoing or its end overlaps the next start. Period length counts marked bleeding days in completed periods; removed calendar days are excluded. The Home countdown uses the rounded arithmetic mean of the recorded start intervals. Before an interval is available, your precise self-reported length can be used as an initial estimate. These summaries are not a diagnosis.',
+                      'Cycle length is the arithmetic mean of ${_intervals.length} recorded start-to-start intervals. An interval is skipped if the earlier period is still marked ongoing or its end overlaps the next start. Period length counts marked bleeding days in completed periods; removed calendar days are excluded. The Home countdown uses the rounded arithmetic mean of the recorded start intervals. Before an interval is available, your precise self-reported length or a provisional general 28-day reference is used. More observations personalize the mean without guaranteeing accuracy. These summaries are not a diagnosis.',
                     ),
                     child: Text(
                       'Calculation details',

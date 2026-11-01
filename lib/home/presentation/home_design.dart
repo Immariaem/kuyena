@@ -5,6 +5,9 @@ abstract final class HomeDesign {
   static const red = Color(0xFFC10E3D);
   static const palePink = Color(0xFFFBE5EB);
   static const pink = Color(0xFFF3B9C9);
+  static const ovulationPink = Color(0xFFE88CAE);
+  static const predictedPeriod = Color(0xFFF8D5DF);
+  static const cycleRest = Color(0xFFFFF6F9);
   static const muted = Color(0xFF806D78);
   static const ink = Color(0xFF382331);
 

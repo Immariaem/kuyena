@@ -80,7 +80,7 @@ void main() {
     expect(find.byType(KuyenaSplash), findsOneWidget);
     await t.pump(const Duration(milliseconds: 1500));
     await t.pumpAndSettle();
-    expect(find.text('Hey, girl!'), findsOneWidget);
+    expect(find.text('Hallo'), findsOneWidget);
     expect(t.takeException(), isNull);
   });
   testWidgets('Calendar opens its menu and switches Day, Month and Year', (
@@ -128,7 +128,7 @@ void main() {
     await tapKey(t, 'mood-okay');
     await t.enterText(find.byKey(const ValueKey('day-note')), 'A quiet day');
     await tapKey(t, 'save-day-entry');
-    expect(find.text('Hey, girl!'), findsOneWidget);
+    expect(find.text('Hallo'), findsOneWidget);
     expect(find.text('Logged symptoms'), findsOneWidget);
     expect(find.text('Fatigue'), findsOneWidget);
     expect(periods.value, isNull);

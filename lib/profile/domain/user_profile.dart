@@ -4,6 +4,7 @@ import '../../periods/domain/calendar_date.dart';
 
 abstract final class ProfileOptions {
   static const periodLengths = {
+    'single': '1 Tag',
     'short': '2–3 Tage',
     'medium': '4–5 Tage',
     'long': '6–7 Tage',
@@ -71,6 +72,8 @@ final class UserProfile {
     this.completed = false,
     this.step = 0,
     this.lastPeriodStart,
+    this.lastPeriodEnd,
+    this.lastPeriodOngoing = false,
     this.periodLength,
     this.cycleLength,
     this.exactCycleDays,
@@ -103,6 +106,15 @@ final class UserProfile {
         (exactCycleDays != null &&
             (exactCycleDays! < 1 || exactCycleDays! > 366))) {
       throw const FormatException('Ungültige Profileinstellung.');
+    }
+    if ((lastPeriodEnd != null &&
+            (lastPeriodStart == null ||
+                lastPeriodEnd!.compareTo(lastPeriodStart!) < 0)) ||
+        (lastPeriodOngoing &&
+            (lastPeriodStart == null || lastPeriodEnd != null))) {
+      throw const FormatException(
+        'Bitte prüfe Beginn und Ende deiner letzten Periode.',
+      );
     }
     _choice(periodLength, ProfileOptions.periodLengths);
     _choice(cycleLength, ProfileOptions.cycleLengths);
@@ -144,7 +156,12 @@ final class UserProfile {
 
   /// Only used to create the explicitly reported first start on completion.
   /// Later date corrections belong to the calendar, not to preferences.
-  final CalendarDate? lastPeriodStart;
+  final CalendarDate? lastPeriodStart, lastPeriodEnd;
+  final bool lastPeriodOngoing;
+  int? get lastPeriodDuration =>
+      lastPeriodStart == null || lastPeriodEnd == null
+      ? null
+      : lastPeriodStart!.daysUntil(lastPeriodEnd!) + 1;
   final String? periodLength, cycleLength, regularity, activity, diet;
   final int? exactCycleDays;
   final Set<String> goals, movements, interests, allergies;
@@ -155,10 +172,12 @@ final class UserProfile {
       otherAllergies,
       dislikedIngredients;
   Map<String, Object?> toJson() => {
-    'version': 1,
+    'version': 2,
     'completed': completed,
     'step': step,
     'lastPeriodStart': lastPeriodStart?.iso,
+    'lastPeriodEnd': lastPeriodEnd?.iso,
+    'lastPeriodOngoing': lastPeriodOngoing,
     'periodLength': periodLength,
     'cycleLength': cycleLength,
     'exactCycleDays': exactCycleDays,
@@ -193,7 +212,7 @@ final class UserProfile {
     }
   }
   factory UserProfile.fromJson(Map<String, dynamic> j) {
-    if (j['version'] != 1 ||
+    if ((j['version'] != 1 && j['version'] != 2) ||
         j['completed'] is! bool ||
         j['step'] is! int ||
         j['reminderMinute'] is! int) {
@@ -201,6 +220,15 @@ final class UserProfile {
     }
     // Require every field, including explicit null for unknown answers.
     final template = UserProfile().toJson();
+    if (j['version'] == 1) {
+      template.remove('lastPeriodEnd');
+      template.remove('lastPeriodOngoing');
+    }
+    if (j['version'] == 2 &&
+        ((j['lastPeriodEnd'] != null && j['lastPeriodEnd'] is! String) ||
+            j['lastPeriodOngoing'] is! bool)) {
+      throw const FormatException('Ungültiger Periodenzeitraum.');
+    }
     if (!template.keys.every(j.containsKey)) throw const FormatException();
     for (final key in [
       'trackMoodEnergy',
@@ -247,6 +275,10 @@ final class UserProfile {
       lastPeriodStart: j['lastPeriodStart'] == null
           ? null
           : CalendarDate.parse(j['lastPeriodStart']),
+      lastPeriodEnd: j['version'] == 1 || j['lastPeriodEnd'] == null
+          ? null
+          : CalendarDate.parse(j['lastPeriodEnd']),
+      lastPeriodOngoing: j['version'] == 1 ? false : j['lastPeriodOngoing'],
       periodLength: j['periodLength'],
       cycleLength: j['cycleLength'],
       exactCycleDays: j['exactCycleDays'],

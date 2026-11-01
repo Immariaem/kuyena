@@ -57,7 +57,7 @@ void main() {
     tester,
   ) async {
     final storage = await openHome(tester);
-    expect(find.text('Hey, girl!'), findsOneWidget);
+    expect(find.text('Hallo'), findsOneWidget);
     expect(find.text('3 Days'), findsNothing);
     expect(find.text('Kein Eintrag'), findsOneWidget);
     expect(find.text('Demo'), findsOneWidget);
@@ -276,7 +276,7 @@ void main() {
       expect(find.text('Recommendations'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('home-nav-Home')));
       await tester.pumpAndSettle();
-      expect(find.text('Hey, girl!'), findsOneWidget);
+      expect(find.text('Hallo'), findsOneWidget);
     }
   });
 
@@ -361,14 +361,14 @@ void main() {
   );
 
   testWidgets(
-    'Unbekanntes Ende gilt nicht als aktive Periode und erfindet keinen Countdown',
+    'Unbekanntes Ende gilt nicht als aktive Periode; Countdown benennt den allgemeinen Startwert',
     (tester) async {
       final storage = savedPeriod();
       final before = storage.value;
       await openHome(tester, storage: storage);
-      expect(find.text('Noch offen'), findsOneWidget);
+      expect(find.text('Noch ca. 26 Tage'), findsOneWidget);
       expect(find.text('Bis zur nächsten Periode'), findsOneWidget);
-      expect(find.textContaining('Ende unbekannt'), findsOneWidget);
+      expect(find.text('Vorläufig mit 28 Tagen'), findsOneWidget);
       expect(find.text('3 Days'), findsNothing);
       expect(storage.value, before);
       await tester.tap(find.byKey(const ValueKey('period-status-ring')));
@@ -396,8 +396,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('date-2026-10-23')));
       await tester.pumpAndSettle();
-      expect(find.text('Bis zur nächsten Periode'), findsOneWidget);
-      expect(find.text('Noch offen'), findsOneWidget);
+      expect(find.text('Bis zum Eisprungfenster'), findsOneWidget);
+      expect(find.text('Noch ca. 9 Tage'), findsOneWidget);
       expect(storage.value, before);
     },
   );
@@ -532,7 +532,7 @@ void main() {
         tester,
         storage: savedPeriod(start: '2026-10-03', end: '2026-10-07'),
       );
-      expect(find.text('Noch offen'), findsOneWidget);
+      expect(find.text('Noch ca. 9 Tage'), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
   });
@@ -552,7 +552,7 @@ void main() {
       );
       final before = storage.value;
       await openHome(tester, storage: storage);
-      expect(find.text('Noch ca. 26 Tage'), findsOneWidget);
+      expect(find.text('Noch ca. 10 Tage'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('period-status-ring')));
       await tester.pumpAndSettle();
       expect(

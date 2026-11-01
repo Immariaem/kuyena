@@ -22,6 +22,9 @@ class MonthGrid extends StatelessWidget {
     this.selected,
     this.periodDays = const {},
     this.entryDays = const {},
+    this.ovulationDays = const {},
+    this.fertileDays = const {},
+    this.expectedPeriodDays = const {},
     this.picker = false,
     this.mini = false,
     this.periodEditing = false,
@@ -34,12 +37,21 @@ class MonthGrid extends StatelessWidget {
   final CalendarDate today;
   final CalendarDate? selected;
   final ValueChanged<CalendarDate> onSelect;
-  final Set<CalendarDate> periodDays, entryDays;
+  final Set<CalendarDate> periodDays,
+      entryDays,
+      ovulationDays,
+      fertileDays,
+      expectedPeriodDays;
   final bool picker, mini, periodEditing;
   final ValueChanged<CalendarDate>? onRangeStart, onRangeUpdate;
   final VoidCallback? onRangeEnd, onRangeCancel;
   @override
   Widget build(BuildContext context) {
+    final visibleFertile = fertileDays
+        .union(ovulationDays)
+        .difference(periodDays)
+        .difference(expectedPeriodDays);
+    final visibleExpected = expectedPeriodDays.difference(periodDays);
     final offset = DateTime(month.year, month.month, 1).weekday - 1;
     final count = DateTime(month.year, month.month + 1, 0).day;
     final rows = monthRows(month);
@@ -69,23 +81,58 @@ class MonthGrid extends StatelessWidget {
                         final isSelected = picker && selected == date;
                         final isPeriod = periodDays.contains(date);
                         final fill = isSelected || isPeriod;
+                        final isOvulation =
+                            !picker &&
+                            !periodEditing &&
+                            !isPeriod &&
+                            ovulationDays.contains(date);
+                        final isExpected =
+                            !picker &&
+                            !periodEditing &&
+                            !isPeriod &&
+                            expectedPeriodDays.contains(date);
+                        final isFertile =
+                            !picker &&
+                            !periodEditing &&
+                            !isPeriod &&
+                            !isExpected &&
+                            fertileDays.contains(date);
+                        final bandDays = isPeriod
+                            ? periodDays
+                            : isExpected
+                            ? visibleExpected
+                            : visibleFertile;
                         final connectedLeft =
                             !picker &&
-                            isPeriod &&
+                            (isPeriod ||
+                                isOvulation ||
+                                isFertile ||
+                                isExpected) &&
                             col > 0 &&
                             day > 1 &&
-                            periodDays.contains(date.addDays(-1));
+                            bandDays.contains(date.addDays(-1));
                         final connectedRight =
                             !picker &&
-                            isPeriod &&
+                            (isPeriod ||
+                                isOvulation ||
+                                isFertile ||
+                                isExpected) &&
                             col < 6 &&
                             day < count &&
-                            periodDays.contains(date.addDays(1));
+                            bandDays.contains(date.addDays(1));
                         final connected = connectedLeft || connectedRight;
                         final diameter = mini ? 23.0 : 40.0;
                         return Semantics(
                           label:
-                              '${fullDate(date)}${isPeriod && !picker ? ', Periodentag' : ''}',
+                              '${fullDate(date)}${isPeriod && !picker
+                                  ? ', Periodentag'
+                                  : isOvulation
+                                  ? ', geschätztes Eisprungfenster'
+                                  : isExpected
+                                  ? ', geschätzte Periode'
+                                  : isFertile
+                                  ? ', möglicherweise fruchtbare Zeit, geschätzt'
+                                  : ''}',
                           selected: periodEditing ? isPeriod : selected == date,
                           enabled: !future,
                           button: true,
@@ -104,6 +151,16 @@ class MonthGrid extends StatelessWidget {
                                 child: Container(
                                   key: isPeriod && !picker
                                       ? ValueKey('period-band-${date.iso}')
+                                      : isOvulation
+                                      ? ValueKey(
+                                          'estimated-ovulation-${date.iso}',
+                                        )
+                                      : isExpected
+                                      ? ValueKey('estimated-period-${date.iso}')
+                                      : isFertile
+                                      ? ValueKey(
+                                          'estimated-fertile-${date.iso}',
+                                        )
                                       : null,
                                   width: connected ? double.infinity : diameter,
                                   height: diameter,
@@ -116,27 +173,67 @@ class MonthGrid extends StatelessWidget {
                                           ? Radius.zero
                                           : Radius.circular(diameter / 2),
                                     ),
-                                    color: fill ? HomeDesign.red : null,
-                                    border: date == today && !fill
-                                        ? Border.all(
-                                            color: HomeDesign.red,
-                                            width: 1.5,
+                                    color: fill
+                                        ? HomeDesign.red
+                                        : isExpected
+                                        ? HomeDesign.predictedPeriod
+                                        : isOvulation
+                                        ? HomeDesign.ovulationPink
+                                        : isFertile
+                                        ? HomeDesign.pink
+                                        : null,
+                                    border: isExpected
+                                        ? Border(
+                                            top: const BorderSide(
+                                              color: HomeDesign.red,
+                                              width: 1,
+                                            ),
+                                            bottom: const BorderSide(
+                                              color: HomeDesign.red,
+                                              width: 1,
+                                            ),
+                                            left: BorderSide(
+                                              color: HomeDesign.red,
+                                              width: 1,
+                                              style: connectedLeft
+                                                  ? BorderStyle.none
+                                                  : BorderStyle.solid,
+                                            ),
+                                            right: BorderSide(
+                                              color: HomeDesign.red,
+                                              width: 1,
+                                              style: connectedRight
+                                                  ? BorderStyle.none
+                                                  : BorderStyle.solid,
+                                            ),
                                           )
                                         : null,
                                   ),
                                   child: Stack(
                                     alignment: Alignment.center,
                                     children: [
-                                      if (date == today && fill && !picker)
+                                      if (date == today && !picker)
                                         Container(
-                                          width: diameter - 6,
-                                          height: diameter - 6,
+                                          key: ValueKey(
+                                            'calendar-today-${date.iso}',
+                                          ),
+                                          width: diameter - (mini ? 3 : 6),
+                                          height: diameter - (mini ? 3 : 6),
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
+                                            color: Colors.white,
                                             border: Border.all(
-                                              color: Colors.white,
-                                              width: 1.2,
+                                              color: HomeDesign.pink,
+                                              width: 1,
                                             ),
+                                          ),
+                                        ),
+                                      if (isExpected && !mini)
+                                        Positioned(
+                                          bottom: 1,
+                                          child: Text(
+                                            '≈',
+                                            style: HomeDesign.text(9),
                                           ),
                                         ),
                                       Text(
@@ -147,7 +244,9 @@ class MonthGrid extends StatelessWidget {
                                               : picker
                                               ? 14
                                               : 17,
-                                          color: fill
+                                          color: date == today && !picker
+                                              ? HomeDesign.ink
+                                              : fill
                                               ? Colors.white
                                               : future
                                               ? HomeDesign.muted.withValues(
@@ -169,7 +268,9 @@ class MonthGrid extends StatelessWidget {
                                             height: 4,
                                             decoration: BoxDecoration(
                                               shape: BoxShape.circle,
-                                              color: fill
+                                              color: date == today && !picker
+                                                  ? HomeDesign.red
+                                                  : fill
                                                   ? Colors.white
                                                   : HomeDesign.red,
                                             ),
@@ -239,6 +340,9 @@ class MonthCard extends StatelessWidget {
     required this.onSelect,
     this.periodDays = const {},
     this.entryDays = const {},
+    this.ovulationDays = const {},
+    this.fertileDays = const {},
+    this.expectedPeriodDays = const {},
     this.periodEditing = false,
     this.onRangeStart,
     this.onRangeUpdate,
@@ -251,7 +355,11 @@ class MonthCard extends StatelessWidget {
   final DateTime month;
   final CalendarDate today;
   final ValueChanged<CalendarDate> onSelect;
-  final Set<CalendarDate> periodDays, entryDays;
+  final Set<CalendarDate> periodDays,
+      entryDays,
+      ovulationDays,
+      fertileDays,
+      expectedPeriodDays;
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
@@ -270,6 +378,9 @@ class MonthCard extends StatelessWidget {
           onSelect: onSelect,
           periodDays: periodDays,
           entryDays: entryDays,
+          ovulationDays: ovulationDays,
+          fertileDays: fertileDays,
+          expectedPeriodDays: expectedPeriodDays,
           periodEditing: periodEditing,
           onRangeStart: onRangeStart,
           onRangeUpdate: onRangeUpdate,

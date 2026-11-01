@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app/presentation/kuyena_shell.dart';
+import 'app/presentation/browser_app_viewport.dart';
 import 'journal/application/day_journal.dart';
 import 'journal/data/local_journal_repository.dart';
 import 'periods/application/period_diary.dart';
@@ -72,6 +73,8 @@ class ZyklusApp extends StatelessWidget {
       locale: const Locale('de'),
       supportedLocales: const [Locale('de')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      builder: (context, child) =>
+          BrowserAppViewport(child: child ?? const SizedBox.shrink()),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE58BA5)),
         useMaterial3: true,

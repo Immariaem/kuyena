@@ -9,7 +9,8 @@ final class ProfileController extends ChangeNotifier {
   final LocalAppStore store;
   final CalendarDate Function() today;
   UserProfile? value;
-  CalendarDate? latestStart;
+  CalendarDate? latestStart, latestEnd;
+  bool latestOngoing = false;
   bool legacyReminders = false;
   Future<void> load() async {
     final data = await store.load();
@@ -23,6 +24,9 @@ final class ProfileController extends ChangeNotifier {
     latestStart = timeline.periods.isEmpty
         ? null
         : timeline.periods.first.start;
+    latestEnd = timeline.periods.isEmpty ? null : timeline.periods.first.end;
+    latestOngoing =
+        timeline.periods.isNotEmpty && timeline.periods.first.isOngoing;
     legacyReminders = data.journal.reminders;
     final changed = next?.encode() != value?.encode();
     value = next;

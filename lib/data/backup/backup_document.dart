@@ -111,8 +111,10 @@ final class BackupDocument {
       final profile = json['version'] == 3 && json['profile'] != null
           ? UserProfile.decode(jsonEncode(json['profile']))
           : null;
-      if (profile?.lastPeriodStart != null &&
-          profile!.lastPeriodStart!.compareTo(today) > 0) {
+      if ((profile?.lastPeriodStart != null &&
+              profile!.lastPeriodStart!.compareTo(today) > 0) ||
+          (profile?.lastPeriodEnd != null &&
+              profile!.lastPeriodEnd!.compareTo(today) > 0)) {
         throw const FormatException();
       }
       return BackupDocument(

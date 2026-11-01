@@ -472,6 +472,8 @@ class KuyenaPage extends StatelessWidget {
                   Expanded(
                     child: Text(
                       subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: HomeDesign.text(
                         15,
                         color: Colors.white,

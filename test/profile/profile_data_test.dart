@@ -245,7 +245,7 @@ void main() {
       final start = CalendarDate(2026, 1, 1);
       expect(CycleEstimate.fromPeriods([], initialLength: 28), isNull);
       final first = Period(id: '1', start: start);
-      expect(CycleEstimate.fromPeriods([first]), isNull);
+      expect(CycleEstimate.fromPeriods([first])!.isPopulationReference, isTrue);
       final initial = CycleEstimate.fromPeriods([first], initialLength: 31)!;
       expect(initial.isInitial, isTrue);
       expect(initial.expectedStart, start.addDays(31));

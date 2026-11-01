@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../periods/domain/period_day_overview.dart';
+import '../../periods/domain/calendar_date.dart';
+import '../../periods/domain/cycle_display.dart';
 import 'home_design.dart';
 
 class PeriodStatusRing extends StatelessWidget {
@@ -16,9 +18,11 @@ class PeriodStatusRing extends StatelessWidget {
     required this.loadFailed,
     required this.onTap,
     this.logSummary,
+    this.asOf,
     this.bleedingAbsent = false,
   });
 
+  final CalendarDate? asOf;
   final String? logSummary;
   final bool bleedingAbsent;
   final double scale;
@@ -30,6 +34,7 @@ class PeriodStatusRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cycle = CycleDisplay.fromDay(overview, asOf: asOf);
     final days = overview.daysToNext;
     final countdownValue = days == null
         ? 'Noch offen'
@@ -42,13 +47,27 @@ class PeriodStatusRing extends StatelessWidget {
         ? 'Zykluslänge oder weitere Beginne ergänzen'
         : days >= 0
         ? overview.estimate!.isInitial
-              ? 'Schätzung mit deinem Richtwert'
+              ? overview.estimate!.isPopulationReference
+                    ? 'Vorläufig mit 28 Tagen'
+                    : 'Schätzung mit deinem Richtwert'
               : 'Mittelwert deiner Startabstände'
         : 'Geschätzt war ${overview.estimate!.expectedStart.display}\nNeuen Beginn eintragen, sobald bekannt';
     final (title, value, detail) = loading
         ? ('Deine Einträge', 'Laden …', 'Einen Moment bitte')
         : loadFailed
         ? ('Deine Einträge', 'Nicht verfügbar', 'Zum erneuten Laden tippen')
+        : overview.hasCountdown && cycle.beforeOvulation
+        ? (
+            'Bis zum Eisprungfenster',
+            'Noch ca. ${cycle.daysToOvulation} ${cycle.daysToOvulation == 1 ? 'Tag' : 'Tage'}',
+            'Geschätzt · Zyklustag ${overview.dayNumber}',
+          )
+        : overview.hasCountdown && cycle.inOvulationWindow
+        ? (
+            'Eisprungfenster',
+            'Ungefähr jetzt',
+            '${cycle.ovulationStart!.display} – ${cycle.ovulationEnd!.display}\nKalenderschätzung',
+          )
         : overview.hasCountdown
         ? ('Bis zur nächsten Periode', countdownValue, countdownDetail)
         : switch (overview.kind) {
@@ -108,37 +127,13 @@ class PeriodStatusRing extends StatelessWidget {
           height: 339 * scale,
           child: Stack(
             children: [
-              SvgPicture.asset(
-                'assets/home/cycle-background.svg',
-                width: 339 * scale,
-                height: 339 * scale,
-                excludeFromSemantics: true,
-              ),
               Positioned.fill(
-                child: TweenAnimationBuilder<double>(
-                  key: ValueKey(
-                    'ring-progress-${overview.period?.id ?? 'none'}',
-                  ),
-                  tween: Tween(
-                    begin: 0,
-                    end: loading || loadFailed ? 0 : overview.progress ?? 0,
-                  ),
-                  duration: MediaQuery.disableAnimationsOf(context)
-                      ? Duration.zero
-                      : const Duration(milliseconds: 650),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, progress, child) => CustomPaint(
-                    painter: PeriodRingPainter(
-                      progress: progress,
-                      color: overview.isPeriod
-                          ? HomeDesign.red
-                          : HomeDesign.pink,
-                      showStart:
-                          !loading &&
-                          !loadFailed &&
-                          overview.kind != PeriodDayKind.noEntry &&
-                          overview.kind != PeriodDayKind.overlapping,
-                    ),
+                child: CustomPaint(
+                  painter: PeriodRingPainter(
+                    days: loading || loadFailed ? const [] : cycle.days,
+                    selectedIndex: loading || loadFailed
+                        ? null
+                        : cycle.selectedIndex,
                   ),
                 ),
               ),
@@ -212,46 +207,57 @@ class PeriodStatusRing extends StatelessWidget {
 }
 
 class PeriodRingPainter extends CustomPainter {
-  const PeriodRingPainter({
-    required this.progress,
-    required this.color,
-    required this.showStart,
-  });
-  final double progress;
-  final Color color;
-  final bool showStart;
+  const PeriodRingPainter({required this.days, required this.selectedIndex});
+  final List<CycleDayType> days;
+  final int? selectedIndex;
+
+  static Color colorFor(CycleDayType day) => switch (day) {
+    CycleDayType.period => HomeDesign.red,
+    CycleDayType.estimatedOvulation => HomeDesign.ovulationPink,
+    CycleDayType.estimatedFertile => HomeDesign.pink,
+    CycleDayType.rest => HomeDesign.cycleRest,
+  };
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.shortestSide * 0.385;
+    canvas.drawCircle(
+      center,
+      size.shortestSide / 2,
+      Paint()..color = HomeDesign.palePink,
+    );
+    final radius = size.shortestSide * 0.405;
     final stroke = size.shortestSide * 0.075;
-    if (!showStart) return;
+    final rect = Rect.fromCircle(center: center, radius: radius);
     final arc = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round
-      ..color = color;
-    if (progress <= 0) {
-      canvas.drawCircle(
-        Offset(center.dx, center.dy - radius),
-        stroke / 2,
-        Paint()..color = color,
-      );
-    } else {
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        -math.pi / 2,
-        2 * math.pi * progress.clamp(0.0, 1.0),
-        false,
-        arc,
-      );
-    }
+      ..strokeCap = StrokeCap.butt;
+    canvas.drawCircle(center, radius, arc..color = HomeDesign.cycleRest);
+    if (days.isEmpty) return;
+    // Sample colours at day centres. Neighbouring colours blend smoothly,
+    // including across midnight at the top, without changing any day data.
+    final seam = Color.lerp(colorFor(days.last), colorFor(days.first), 0.5)!;
+    arc.shader = SweepGradient(
+      transform: const GradientRotation(-math.pi / 2),
+      colors: [seam, for (final day in days) colorFor(day), seam],
+      stops: [
+        0,
+        for (var i = 0; i < days.length; i++) (i + 0.5) / days.length,
+        1,
+      ],
+    ).createShader(rect);
+    canvas.drawCircle(center, radius, arc);
+    final index = selectedIndex;
+    if (index == null) return;
+    final angle = -math.pi / 2 + 2 * math.pi * (index + 0.5) / days.length;
+    final point = center + Offset(math.cos(angle), math.sin(angle)) * radius;
+    canvas.drawCircle(point, stroke * 0.42, Paint()..color = Colors.white);
+    canvas.drawCircle(point, stroke * 0.23, Paint()..color = HomeDesign.red);
   }
 
   @override
   bool shouldRepaint(PeriodRingPainter oldDelegate) =>
-      oldDelegate.progress != progress ||
-      oldDelegate.color != color ||
-      oldDelegate.showStart != showStart;
+      oldDelegate.selectedIndex != selectedIndex ||
+      !listEquals(oldDelegate.days, days);
 }

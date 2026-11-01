@@ -29,7 +29,7 @@ String phaseExplanation(CyclePhaseOverview overview) {
   if (overview.isEstimated) {
     return 'Das ist eine vorläufige Kalenderschätzung. Die nächste Periode wird aus '
         'dem Mittelwert deiner dokumentierten Abstände zwischen Periodenbeginnen geschätzt. '
-        'Solange noch kein Abstand vorliegt, kann deine genaue übliche Zykluslänge als Richtwert dienen. '
+        'Solange noch kein Abstand vorliegt, verwenden wir deine genaue übliche Zykluslänge oder vorläufig einen allgemeinen 28-Tage-Startwert. '
         'Als grobe Orientierung liegt „Around ovulation“ 10–16 Tage vor diesem geschätzten Beginn '
         '(${overview.earliestOvulation!.display} bis ${overview.latestOvulation!.display}). '
         'Davor wird nach dem dokumentierten Periodenende die Follikelphase, danach die Lutealphase geschätzt. '

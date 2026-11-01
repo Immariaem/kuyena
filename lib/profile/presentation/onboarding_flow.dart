@@ -19,11 +19,13 @@ class OnboardingFlow extends StatefulWidget {
     this.editing = false,
     this.initialSection,
     this.onFinished,
+    this.onEditPeriods,
   });
   final ProfileController controller;
   final bool editing;
   final int? initialSection;
   final VoidCallback? onFinished;
+  final Future<void> Function()? onEditPeriods;
   @override
   State<OnboardingFlow> createState() => _OnboardingFlowState();
 }
@@ -51,6 +53,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       (_baseline ??
               UserProfile(
                 lastPeriodStart: widget.controller.latestStart,
+                lastPeriodEnd: widget.controller.latestEnd,
+                lastPeriodOngoing: widget.controller.latestOngoing,
                 dailyReminder: widget.controller.legacyReminders ? true : null,
               ))
           .toJson(),
@@ -77,9 +81,44 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   void _set(String key, Object? value) => setState(() {
     _answers[key] = value;
+    if (key == 'lastPeriodStart') {
+      if (value == null ||
+          (_answers['lastPeriodEnd'] != null &&
+              CalendarDate.parse(
+                    _answers['lastPeriodEnd'],
+                  ).compareTo(CalendarDate.parse(value as String)) <
+                  0)) {
+        _answers['lastPeriodEnd'] = null;
+      }
+      if (value == null) _answers['lastPeriodOngoing'] = false;
+    }
+    if (key == 'lastPeriodEnd') _answers['lastPeriodOngoing'] = false;
+    if (key == 'lastPeriodOngoing' && value == true) {
+      _answers['lastPeriodEnd'] = null;
+    }
+    if ((key == 'lastPeriodStart' || key == 'lastPeriodEnd') &&
+        _lastDuration != null) {
+      final d = _lastDuration!;
+      _answers['periodLength'] = d == 1
+          ? 'single'
+          : d <= 3
+          ? 'short'
+          : d <= 5
+          ? 'medium'
+          : d <= 7
+          ? 'long'
+          : 'extended';
+    }
     _dirty = true;
     _error = null;
   });
+  int? get _lastDuration =>
+      _answers['lastPeriodStart'] == null || _answers['lastPeriodEnd'] == null
+      ? null
+      : CalendarDate.parse(
+              _answers['lastPeriodStart'],
+            ).daysUntil(CalendarDate.parse(_answers['lastPeriodEnd'])) +
+            1;
   UserProfile _profile({required bool completed, required int step}) {
     final raw = _exact.text.trim();
     if (raw.isNotEmpty &&
@@ -249,7 +288,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     bool multiple = false,
     bool unknown = false,
   }) {
-    final selected = multiple
+    final selected =
+        key == 'lastPeriodEnd' && _answers['lastPeriodOngoing'] == true
+        ? false
+        : multiple
         ? (_answers[key] as List).contains(value)
         : _answers[key] == value;
     return Semantics(
@@ -364,58 +406,80 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       ),
     ),
   );
-  Future<void> _date() async {
+  Future<void> _date({bool end = false}) async {
     final today = widget.controller.today();
-    final raw = _answers['lastPeriodStart'] as String?;
+    final start = _answers['lastPeriodStart'] == null
+        ? null
+        : CalendarDate.parse(_answers['lastPeriodStart']);
+    if (end && start == null) return;
+    final raw = _answers[end ? 'lastPeriodEnd' : 'lastPeriodStart'] as String?;
+    final initial = raw == null
+        ? (end ? start!.value : today.value)
+        : CalendarDate.parse(raw).value;
     final chosen = await showDatePicker(
       context: context,
-      initialDate: raw == null ? today.value : CalendarDate.parse(raw).value,
-      firstDate: DateTime(1900),
+      initialDate: initial,
+      firstDate: end ? start!.value : DateTime(1900),
       lastDate: today.value,
-      helpText: 'Letzter Periodenbeginn',
+      helpText: end ? 'Letzter Blutungstag' : 'Letzter Periodenbeginn',
     );
     if (chosen != null) {
-      _set('lastPeriodStart', CalendarDate.fromDateTime(chosen).iso);
+      _set(
+        end ? 'lastPeriodEnd' : 'lastPeriodStart',
+        CalendarDate.fromDateTime(chosen).iso,
+      );
     }
+  }
+
+  Widget _dateButton({required bool end}) {
+    final raw = _answers[end ? 'lastPeriodEnd' : 'lastPeriodStart'] as String?;
+    return OutlinedButton(
+      key: ValueKey(end ? 'profile-end-date' : 'profile-start-date'),
+      onPressed: _busy || (end && _answers['lastPeriodStart'] == null)
+          ? null
+          : () => _date(end: end),
+      style: OutlinedButton.styleFrom(
+        backgroundColor: HomeDesign.palePink,
+        side: BorderSide.none,
+        padding: const EdgeInsets.all(18),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              raw == null
+                  ? (end && _answers['lastPeriodOngoing'] == true
+                        ? 'Periode läuft noch'
+                        : 'tt.mm.jjjj')
+                  : CalendarDate.parse(raw).display,
+              style: HomeDesign.text(17),
+            ),
+          ),
+          const Icon(
+            Icons.calendar_today_outlined,
+            color: HomeDesign.ink,
+            size: 22,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editPeriod() async {
+    await widget.onEditPeriods?.call();
+    if (mounted) setState(() {});
   }
 
   Widget _cycle() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      if (!widget.editing)
+      if (!widget.editing) ...[
         _question(
           'Wann hat deine letzte Periode begonnen?',
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              OutlinedButton(
-                key: const ValueKey('profile-start-date'),
-                onPressed: _busy ? null : _date,
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: HomeDesign.palePink,
-                  side: BorderSide.none,
-                  padding: const EdgeInsets.all(18),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _answers['lastPeriodStart'] == null
-                            ? 'tt.mm.jjjj'
-                            : CalendarDate.parse(
-                                _answers['lastPeriodStart'],
-                              ).display,
-                        style: HomeDesign.text(17),
-                      ),
-                    ),
-                    const Icon(
-                      Icons.calendar_today_outlined,
-                      color: HomeDesign.ink,
-                      size: 22,
-                    ),
-                  ],
-                ),
-              ),
+              _dateButton(end: false),
               const SizedBox(height: 10),
               Align(
                 alignment: Alignment.centerLeft,
@@ -428,21 +492,64 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
               ),
             ],
           ),
-          hint:
-              'Wir speichern diesen Beginn ohne ein geschätztes Enddatum. Du kannst ihn später im Kalender korrigieren.',
         ),
-      if (widget.editing)
+        _question(
+          'Wann war der letzte Tag deiner Periode?',
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _dateButton(end: true),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _choice(
+                    'lastPeriodEnd',
+                    'Weiß ich nicht',
+                    null,
+                    unknown: true,
+                  ),
+                  if (_answers['lastPeriodStart'] != null)
+                    _choice('lastPeriodOngoing', 'Periode läuft noch', true),
+                ],
+              ),
+              if (_lastDuration != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    'Deine letzte Periode dauerte $_lastDuration ${_lastDuration == 1 ? 'Tag' : 'Tage'}.',
+                    key: const ValueKey('profile-calculated-duration'),
+                    style: HomeDesign.text(16),
+                  ),
+                ),
+            ],
+          ),
+          hint:
+              'Beginn und letzter Blutungstag zählen mit. Der ganze Zeitraum wird im Kalender eingetragen. Ein unbekanntes Ende wird nicht geschätzt.',
+        ),
+      ] else ...[
         Padding(
-          padding: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.only(bottom: 12),
           child: Text(
-            'Periodenbeginn und -ende kannst du unter „Cycle & App → Edit cycle data“ oder im Kalender korrigieren.',
-            style: HomeDesign.text(
-              14,
-              color: HomeDesign.muted,
-              weight: FontWeight.w600,
-            ),
+            widget.controller.latestStart == null
+                ? 'Noch kein Periodenzeitraum eingetragen.'
+                : 'Letzte Periode: ${widget.controller.latestStart!.display} – ${widget.controller.latestOngoing ? 'läuft noch' : widget.controller.latestEnd?.display ?? 'Ende unbekannt'}',
+            style: HomeDesign.text(15),
           ),
         ),
+        if (widget.onEditPeriods != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              key: const ValueKey('profile-edit-period-range'),
+              onPressed: _busy ? null : _editPeriod,
+              icon: const Icon(Icons.calendar_month_outlined),
+              label: const Text('Periodenzeitraum bearbeiten'),
+            ),
+          ),
+        const SizedBox(height: 16),
+      ],
       _question(
         'Wie lange dauert deine Periode normalerweise?',
         _choices(
@@ -450,6 +557,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           ProfileOptions.periodLengths,
           unknown: 'Weiß ich nicht',
         ),
+        hint: _lastDuration == null
+            ? null
+            : 'Aus dem eingetragenen Zeitraum vorbelegt. Du kannst deine übliche Dauer trotzdem ändern.',
       ),
       _question(
         'Wie lang ist dein Zyklus normalerweise?',
@@ -498,7 +608,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Nur eine genaue Zahl verwenden wir als ersten Richtwert für den Countdown. Einen Bereich rechnen wir nicht heimlich in eine feste Zahl um.',
+              'Wenn du keine genaue Zykluslänge weißt, starten wir vorläufig mit einem allgemeinen Richtwert von 28 Tagen. Mit weiteren Periodenbeginnen verwenden wir deinen persönlichen Mittelwert. Ein gewählter Bereich wird nicht in eine erfundene genaue Zahl umgerechnet.',
               style: HomeDesign.text(
                 12,
                 color: HomeDesign.muted,
@@ -790,6 +900,12 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         [
           if (!widget.editing && _answers['lastPeriodStart'] != null)
             'Beginn: ${CalendarDate.parse(_answers['lastPeriodStart']).display}',
+          if (!widget.editing && _answers['lastPeriodEnd'] != null)
+            'Ende: ${CalendarDate.parse(_answers['lastPeriodEnd']).display}',
+          if (!widget.editing && _lastDuration != null)
+            'Letzte Periodendauer: $_lastDuration Tage',
+          if (!widget.editing && _answers['lastPeriodOngoing'] == true)
+            'Periode läuft noch',
           if (_answers['periodLength'] != null)
             'Periodendauer: ${ProfileOptions.periodLengths[_answers['periodLength']]}',
           if (_answers['cycleLength'] != null)
@@ -846,7 +962,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       ),
       const SizedBox(height: 6),
       Text(
-        'Bei wenigen Daten sind Vorhersagen noch ungenauer. Zunächst nutzen wir deine genaue Zykluslänge, falls bekannt. Danach verwenden wir den Mittelwert deiner dokumentierten Startabstände. Es wird kein Eisprung bestätigt.',
+        'Bei wenigen Daten sind Vorhersagen besonders unsicher. Zunächst nutzen wir deine genaue Zykluslänge oder einen allgemeinen Startwert von 28 Tagen. Mit dokumentierten Startabständen verwenden wir deinen persönlichen Mittelwert. Mehr Daten garantieren keine höhere Genauigkeit. Das Eisprungfenster bleibt eine grobe Schätzung.',
         style: HomeDesign.text(
           13,
           color: HomeDesign.muted,

@@ -56,7 +56,7 @@ void main() {
       editor.save(await editor.load(), changes);
 
   test(
-    'calendar-only adjacent days form one completed period, no default prediction',
+    'calendar-only adjacent days form one completed period with a labeled initial estimate',
     () async {
       await mark({d(26): true, d(27): true, d(28): true});
       final data = await editor.load(),
@@ -67,8 +67,11 @@ void main() {
       expect(data.contains(d(29)), isFalse);
       expect(data.timeline.calendarPeriodIds, {p.id});
       expect(
-        PeriodDayOverview.fromPeriods(data.timeline.periods, d(29)).estimate,
-        isNull,
+        PeriodDayOverview.fromPeriods(
+          data.timeline.periods,
+          d(29),
+        ).estimate!.isPopulationReference,
+        isTrue,
       );
       expect(manual.value, isNull);
     },

@@ -169,7 +169,7 @@ class HomeDesktopLayout extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Hey, girl!', style: HomeDesign.text(40)),
+                              Text('Hallo', style: HomeDesign.text(40)),
                               const SizedBox(height: 4),
                               Text(
                                 MaterialLocalizations.of(

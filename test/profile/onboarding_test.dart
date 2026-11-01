@@ -74,7 +74,7 @@ void main() {
     },
   );
   testWidgets(
-    'Answers, multi-select, unknown, text, time and summary edits persist without inventing an end',
+    'Answers and full period range persist; actual duration and first forecasts update immediately',
     (t) async {
       init();
       await f.store.saveProfile(
@@ -100,6 +100,33 @@ void main() {
             t.element(find.byType(DatePickerDialog)),
           ).okButtonLabel,
         ),
+      );
+      await tap(t, find.byKey(const ValueKey('profile-end-date')));
+      await tap(
+        t,
+        find
+            .descendant(
+              of: find.byType(DatePickerDialog),
+              matching: find.text('24'),
+            )
+            .last,
+      );
+      await tap(
+        t,
+        find.text(
+          MaterialLocalizations.of(
+            t.element(find.byType(DatePickerDialog)),
+          ).okButtonLabel,
+        ),
+      );
+      expect(find.text('Deine letzte Periode dauerte 5 Tage.'), findsOneWidget);
+      expect(
+        t
+            .widget<FilterChip>(
+              find.byKey(const ValueKey('profile-periodLength-medium')),
+            )
+            .selected,
+        isTrue,
       );
       await tap(t, find.byKey(const ValueKey('profile-periodLength-medium')));
       await t.enterText(
@@ -170,9 +197,24 @@ void main() {
       expect(profile.dailyReminder, isTrue);
       expect(profile.reminderMinute, 1115);
       expect(data.periods.single.start, dataToday.addDays(-9));
-      expect(data.periods.single.end, isNull);
+      expect(data.periods.single.end, dataToday.addDays(-5));
+      expect(data.periods.single.documentedDayCount, 5);
+      expect(profile.lastPeriodDuration, 5);
+      expect(find.byKey(const ValueKey('forecast-next-period')), findsNothing);
+      expect(find.text('Hallo'), findsOneWidget);
       expect(data.periods.single.isOngoing, isFalse);
-      expect(find.text('Noch ca. 21 Tage'), findsOneWidget);
+      expect(find.text('Noch ca. 5 Tage'), findsOneWidget);
+      expect(find.text('Bis zum Eisprungfenster'), findsOneWidget);
+      await tap(t, find.text('Calendar').last);
+      await tap(t, find.byKey(const ValueKey('calendar-info')));
+      expect(
+        find.text('Nächste Periode ≈ 19.11.2026 – 23.11.2026'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Eisprungfenster ≈ 03.11.2026 – 09.11.2026'),
+        findsOneWidget,
+      );
       expect(t.takeException(), isNull);
     },
   );

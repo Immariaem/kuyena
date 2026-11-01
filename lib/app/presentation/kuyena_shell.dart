@@ -178,6 +178,8 @@ class _KuyenaShellState extends State<KuyenaShell> with WidgetsBindingObserver {
     final page = switch (_tab) {
       1 => CalendarPage(
         key: ValueKey('calendar-$_revision'),
+        periodLengthPreference: widget.profileController?.value?.periodLength,
+        initialCycleLength: widget.profileController?.value?.exactCycleDays,
         initialDate: _calendarInitialDate,
         diary: widget.diary,
         journal: widget.journal,
